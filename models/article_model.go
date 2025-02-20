@@ -292,13 +292,22 @@ func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, err
 
 	// 3. 分类过滤
 	if len(params.Category) > 0 {
-		boolQuery.Filter = append(boolQuery.Filter, types.Query{
-			Terms: &types.TermsQuery{
-				TermsQuery: map[string]types.TermsQueryField{
-					"category": params.Category,
+		// 只匹配其中一个分类
+		// boolQuery.Filter = append(boolQuery.Filter, types.Query{
+		// 	Terms: &types.TermsQuery{
+		// 		TermsQuery: map[string]types.TermsQueryField{
+		// 			"category": params.Category,
+		// 		},
+		// 	},
+		// })
+		// 匹配所有分类
+		for _, category := range params.Category {
+			boolQuery.Filter = append(boolQuery.Filter, types.Query{
+				Term: map[string]types.TermQuery{
+					"category": {Value: category},
 				},
-			},
-		})
+			})
+		}
 	}
 
 	// 4. 日期范围过滤
