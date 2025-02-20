@@ -268,7 +268,6 @@ func (s *ArticleService) ArticleDelete(ids []string) error {
 }
 
 // ArticleSearch 搜索文章
-// ArticleSearch 增强版搜索文章
 func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
 	defer cancel()
@@ -300,7 +299,7 @@ func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, err
 		// 		},
 		// 	},
 		// })
-		// 匹配所有分类
+		//
 		for _, category := range params.Category {
 			boolQuery.Filter = append(boolQuery.Filter, types.Query{
 				Term: map[string]types.TermQuery{
@@ -342,27 +341,6 @@ func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, err
 		sortOrder = "desc"
 	}
 
-	// 8. 构建高亮配置
-	highlight := &types.Highlight{
-		Fields: map[string]types.HighlightField{
-			"title": {
-				PreTags:  []string{"<em class='highlight'>"},
-				PostTags: []string{"</em>"},
-			},
-			"abstract": {
-				PreTags:           []string{"<em class='highlight'>"},
-				PostTags:          []string{"</em>"},
-				NumberOfFragments: &[]int{2}[0],
-			},
-			"content": {
-				PreTags:           []string{"<em class='highlight'>"},
-				PostTags:          []string{"</em>"},
-				NumberOfFragments: &[]int{3}[0],
-				FragmentSize:      &[]int{150}[0],
-			},
-		},
-	}
-
 	// 10. 构建搜索请求
 	searchRequest := global.Es.Search().
 		Index(s.articleIndex).
@@ -373,8 +351,7 @@ func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, err
 			},
 		}).
 		From(from).
-		Size(pageSize).
-		Highlight(highlight)
+		Size(pageSize)
 
 	// 12. 执行搜索
 	resp, err := searchRequest.Do(ctx)
@@ -393,17 +370,6 @@ func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, err
 			)
 			continue
 		}
-
-		// 处理高亮结果
-		if hit.Highlight != nil {
-			if titleHighlights, exists := hit.Highlight["title"]; exists && len(titleHighlights) > 0 {
-				article.Title = titleHighlights[0]
-			}
-			if abstractHighlights, exists := hit.Highlight["abstract"]; exists && len(abstractHighlights) > 0 {
-				article.Abstract = abstractHighlights[0]
-			}
-		}
-
 		articles = append(articles, article)
 	}
 
