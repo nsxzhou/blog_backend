@@ -1,16 +1,22 @@
 package models
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"blog/global"
-	utils "blog/utils"
+	"blog/utils"
 
+	"github.com/tencentyun/cos-go-sdk-v5"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -33,7 +39,7 @@ type ImageModel struct {
 	Path string `json:"path" gorm:"comment:图片路径"`
 	Hash string `json:"hash" gorm:"uniqueIndex:idx_hash,length:32;comment:图片哈希值"`
 	Name string `json:"name" gorm:"comment:图片名称"`
-	Type string `json:"type" gorm:"comment:存储类型;default:local"`
+	Type string `json:"type" gorm:"comment:存储类型;"`
 	Size int64  `json:"size" gorm:"comment:图片大小"`
 }
 
@@ -88,26 +94,60 @@ func (im *ImageModel) Upload(file *multipart.FileHeader) (res UploadResponse) {
 		return existingImage
 	}
 
-	// 4. 处理文件上传
-	filePath, err := im.processUpload(file, byteData)
-	if err != nil {
-		res.Msg = err.Error()
+	// 4. 处理文件上传（本地和腾讯云）
+	// 生成本地文件路径
+	basePath := global.Config.Upload.Path
+	fileName := file.Filename
+	localFilePath := filepath.Join("/", basePath, fileName)
+
+	// 确保目录存在
+	uploadDir := filepath.Join(basePath)
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		global.Log.Error("创建目录失败", zap.String("error", err.Error()))
+		res.Msg = "创建上传目录失败"
 		return
+	}
+
+	// 写入本地文件
+	if err := os.WriteFile(filepath.Join(uploadDir, fileName), byteData, 0644); err != nil {
+		global.Log.Error("写入文件失败", zap.String("error", err.Error()))
+		res.Msg = "保存文件失败"
+		return
+	}
+
+	// 尝试上传到腾讯云
+	cosFilePath, err := im.uploadToTencentCOS(file, byteData)
+	var finalPath string
+	var storageType string
+
+	if err != nil {
+		// 腾讯云上传失败，使用本地存储
+		global.Log.Warn("上传到腾讯云失败，将使用本地存储",
+			zap.String("error", err.Error()),
+			zap.String("localPath", localFilePath),
+		)
+		finalPath = localFilePath
+		storageType = LocalStorage
+	} else {
+		// 腾讯云上传成功
+		finalPath = cosFilePath
+		storageType = OnlineStorage
 	}
 
 	// 5. 保存记录到数据库
-	if err := im.imageRecordSave(file, filePath, LocalStorage, imageHash); err != nil {
-		// 如果数据库保存失败，删除已上传的文件
-		if err := os.Remove(filePath[1:]); err != nil {
-			global.Log.Error("删除文件失败", zap.String("error", err.Error()))
+	if err := im.imageRecordSave(file, finalPath, storageType, imageHash); err != nil {
+		if storageType == LocalStorage {
+			// 如果是本地存储且数据库保存失败，删除已上传的文件
+			if err := os.Remove(filepath.Join(uploadDir, fileName)); err != nil {
+				global.Log.Error("删除文件失败", zap.String("error", err.Error()))
+			}
 		}
 		res.Msg = "保存图片记录失败"
 		return
-
 	}
 
 	return UploadResponse{
-		FileName:  filePath,
+		FileName:  finalPath,
 		IsSuccess: true,
 		Msg:       "上传成功",
 		Size:      file.Size,
@@ -142,27 +182,35 @@ func (im *ImageModel) checkDuplicate(hash string) (UploadResponse, bool) {
 	return UploadResponse{}, false
 }
 
-// processUpload 处理文件上传
-func (im *ImageModel) processUpload(file *multipart.FileHeader, data []byte) (string, error) {
-	// 生成文件路径
-	basePath := global.Config.Upload.Path
-	fileName := file.Filename
-	filePath := filepath.Join("/", basePath, fileName)
+// uploadToTencentCOS 上传文件到腾讯云COS
+func (im *ImageModel) uploadToTencentCOS(file *multipart.FileHeader, data []byte) (string, error) {
+	// 获取腾讯云配置
+	cosConfig := global.Config.TencentCos
 
-	// 确保目录存在
-	uploadDir := filepath.Join(basePath)
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		global.Log.Error("创建目录失败", zap.String("error", err.Error()))
-		return "", fmt.Errorf("创建上传目录失败")
+	// 创建COS客户端
+	u, _ := url.Parse(cosConfig.BucketURL)
+	b := &cos.BaseURL{BucketURL: u}
+	client := cos.NewClient(b, &http.Client{
+		Transport: &cos.AuthorizationTransport{
+			SecretID:  cosConfig.SecretID,
+			SecretKey: cosConfig.SecretKey,
+		},
+	})
+
+	// 生成文件名，使用时间戳避免重名
+	ext := filepath.Ext(file.Filename)                          // 获取文件扩展名
+	fileName := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext) // 使用时间戳作为文件名
+
+	// 上传对象
+	r := bytes.NewReader(data)
+	_, err := client.Object.Put(context.Background(), fileName, r, nil)
+	if err != nil {
+		global.Log.Error("上传到腾讯云失败", zap.String("error", err.Error()))
+		return "", fmt.Errorf("上传到腾讯云失败: %v", err)
 	}
 
-	// 写入文件
-	if err := os.WriteFile(filepath.Join(uploadDir, fileName), data, 0644); err != nil {
-		global.Log.Error("写入文件失败", zap.String("error", err.Error()))
-		return "", fmt.Errorf("保存文件失败")
-	}
-
-	return filePath, nil
+	// 使用存储桶URL
+	return fmt.Sprintf("%s/%s", strings.TrimRight(cosConfig.BucketURL, "/"), fileName), nil
 }
 
 // imageRecordSave 保存图片记录到数据库
@@ -178,7 +226,8 @@ func (im *ImageModel) imageRecordSave(file *multipart.FileHeader, filePath, file
 
 // BeforeDelete 删除钩子：在删除数据库记录前删除对应的文件
 func (im *ImageModel) BeforeDelete(tx *gorm.DB) error {
-	if im.Type == LocalStorage {
+	switch im.Type {
+	case LocalStorage:
 		filePath := im.Path[1:] // 移除路径开头的'/'
 		if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 			global.Log.Error("删除本地文件失败",
@@ -186,6 +235,46 @@ func (im *ImageModel) BeforeDelete(tx *gorm.DB) error {
 				zap.String("error", err.Error()),
 			)
 			return fmt.Errorf("删除文件失败: %v", err)
+		}
+	case OnlineStorage:
+		// 删除腾讯云COS中的文件
+		cosConfig := global.Config.TencentCos
+		u, _ := url.Parse(cosConfig.BucketURL)
+		b := &cos.BaseURL{BucketURL: u}
+		client := cos.NewClient(b, &http.Client{
+			Transport: &cos.AuthorizationTransport{
+				SecretID:  cosConfig.SecretID,
+				SecretKey: cosConfig.SecretKey,
+			},
+		})
+
+		// 从完整URL中提取对象键
+		objectKey := strings.TrimPrefix(im.Path, cosConfig.BucketURL+"/")
+
+		// 确保 objectKey 不为空
+		if objectKey == "" {
+			global.Log.Error("无法从路径中提取对象键",
+				zap.String("path", im.Path),
+			)
+			return fmt.Errorf("无效的文件路径")
+		}
+
+		// 删除对象
+		_, err := client.Object.Delete(context.Background(), objectKey)
+		if err != nil {
+			// 如果对象不存在，不返回错误
+			if strings.Contains(err.Error(), "NoSuchKey") {
+				global.Log.Warn("腾讯云文件不存在",
+					zap.String("path", im.Path),
+				)
+				return nil
+			}
+			global.Log.Error("删除腾讯云文件失败",
+				zap.String("path", im.Path),
+				zap.String("objectKey", objectKey),
+				zap.String("error", err.Error()),
+			)
+			return fmt.Errorf("删除腾讯云文件失败: %v", err)
 		}
 	}
 	return nil

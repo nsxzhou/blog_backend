@@ -30,37 +30,28 @@ func (u *UserModel) Create(ip string) error {
 	if err := utils.Validate(u); err != nil {
 		return fmt.Errorf("输入验证失败: %w", err)
 	}
+	// 检查用户是否存在
+	if err := u.checkExist(); err != nil {
+		return fmt.Errorf("用户检查失败: %w", err)
+	}
+	// 密码加密
+	hashedPassword, err := utils.HashPassword(u.Password)
+	if err != nil {
+		return fmt.Errorf("密码处理失败: %w", err)
+	}
+	u.Password = hashedPassword
 
-	return global.DB.Transaction(func(tx *gorm.DB) error {
-		// 检查用户是否存在
-		if err := u.checkExist(); err != nil {
-			return fmt.Errorf("用户检查失败: %w", err)
-		}
+	// 获取地址信息
+	u.Address = utils.GetAddrByIp(ip)
 
-		// 密码加密
-		hashedPassword, err := utils.HashPassword(u.Password)
-		if err != nil {
-			return fmt.Errorf("密码处理失败: %w", err)
-		}
-		u.Password = hashedPassword
-
-		// 获取地址信息
-		u.Address = utils.GetAddrByIp(ip)
-
-		// 创建用户
-		if err := tx.Create(u).Error; err != nil {
-			return fmt.Errorf("创建用户失败: %w", err)
-		}
-
-		return nil
-	})
+	return global.DB.Create(u).Error
 }
 
 // checkExists 检查用户是否已存在
 func (u *UserModel) checkExist() error {
 	var exists bool
 	err := global.DB.Model(&UserModel{}).
-		Select("1").
+		Select("1"). //select 1 表示只查询是否存在
 		Where("nick_name = ? OR account = ?", u.Nickname, u.Account).
 		Limit(1).
 		Find(&exists).

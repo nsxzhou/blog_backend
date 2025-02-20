@@ -16,20 +16,10 @@ type FriendLinkModel struct {
 
 // Create 创建友链
 func (c *FriendLinkModel) Create() error {
-	return global.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(c).Error; err != nil {
-			return fmt.Errorf("创建友链失败: %w", err)
-		}
-		return nil
-	})
+	return global.DB.Create(c).Error
 }
 
 // Delete 删除友链
 func (c *FriendLinkModel) Delete() error {
-	return global.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Delete(c).Error; err != nil {
-			return fmt.Errorf("删除友链失败: %w", err)
-		}
-		return nil
-	})
+	return global.DB.Delete(c).Error
 }

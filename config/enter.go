@@ -14,6 +14,7 @@ type Config struct {
 	Captcha Captcha `mapstructure:"captcha"`
 	Upload  Upload  `mapstructure:"upload"`
 	QQ      QQ      `mapstructure:"qq"`
+	TencentCos TencentCos `mapstructure:"tencent_cos"`
 }
 
 
