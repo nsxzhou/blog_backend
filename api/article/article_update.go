@@ -12,12 +12,12 @@ import (
 )
 
 type ArticleUpdateRequest struct {
-	ID       string `json:"id" validate:"required"`
-	Title    string `json:"title" validate:"required,min=1,max=50"`
-	Abstract string `json:"abstract" validate:"required,min=1,max=100"`
-	Content  string `json:"content" validate:"required,min=1,max=100000"`
-	Category string `json:"category" validate:"required,min=1,max=10"`
-	CoverID  uint   `json:"cover_id" validate:"required,gt=0"`
+	ID       string   `json:"id" validate:"required"`
+	Title    string   `json:"title" validate:"required,min=1,max=50"`
+	Abstract string   `json:"abstract" validate:"required,min=1,max=100"`
+	Content  string   `json:"content" validate:"required,min=1,max=100000"`
+	Category []string `json:"category" validate:"required,min=1,max=10,dive,min=1,max=10"`
+	CoverID  uint     `json:"cover_id" validate:"required,gt=0"`
 }
 
 func (a *Article) ArticleUpdate(c *gin.Context) {

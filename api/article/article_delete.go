@@ -4,8 +4,8 @@ import (
 	"blog/global"
 	"blog/models"
 	"blog/models/res"
-	"blog/utils"
 	"blog/service/redis_ser"
+	"blog/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"

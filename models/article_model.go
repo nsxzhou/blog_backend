@@ -29,7 +29,7 @@ type Article struct {
 	CollectsCount uint          `json:"collects_count"` // 收藏量
 	UserID        uint          `json:"user_id"`        // 用户id
 	UserName      string        `json:"user_name"`      // 用户昵称
-	Category      string        `json:"category"`       // 文章分类
+	Category      []string      `json:"category"`       // 文章分类
 	CoverID       uint          `json:"cover_id"`       // 封面id
 	CoverURL      string        `json:"cover_url"`      // 封面
 	Version       int64         `json:"version"`        // 版本号
@@ -49,12 +49,18 @@ type ArticleService struct {
 	timeout      time.Duration
 }
 
+type DateRange struct {
+	Start string `json:"start" form:"start"`
+	End   string `json:"end" form:"end"`
+}
+
 // SearchParams 搜索参数
 type SearchParams struct {
 	PageInfo
-	Category  string `json:"category" form:"category"`
-	SortField string `json:"sort_field" form:"sort_field"`
-	SortOrder string `json:"sort_order" form:"sort_order"`
+	SortField string    `json:"sort_field" form:"sort_field"`
+	SortOrder string    `json:"sort_order" form:"sort_order"`
+	Category  []string  `json:"category" form:"category"`
+	DateRange DateRange `json:"date_range" form:"date_range"`
 }
 
 // SearchResult 搜索结果
@@ -76,7 +82,6 @@ func NewArticleService() *ArticleService {
 // IndexCreate 创建索引
 func (s *ArticleService) IndexCreate() error {
 	if s.ctx == nil {
-
 		s.ctx = context.Background()
 	}
 
@@ -263,39 +268,93 @@ func (s *ArticleService) ArticleDelete(ids []string) error {
 }
 
 // ArticleSearch 搜索文章
+// ArticleSearch 增强版搜索文章
 func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
-
 	defer cancel()
 
+	// 1. 构建布尔查询
 	boolQuery := types.NewBoolQuery()
 
+	// 2. 关键词搜索增强
 	if params.PageInfo.Key != "" {
+		// 多字段匹配，使用best_fields策略
 		multiMatchQuery := types.NewMultiMatchQuery()
 		multiMatchQuery.Query = params.PageInfo.Key
-		multiMatchQuery.Fields = []string{"title^3", "abstract^2", "content"}
+		multiMatchQuery.Fields = []string{
+			"title^3",       // 标题权重最高
+			"abstract^2",    // 摘要次之
+			"content",       // 内容权重最低
+			"user_name^1.5", // 作者名也可搜索
+		}
 		boolQuery.Must = append(boolQuery.Must, types.Query{MultiMatch: multiMatchQuery})
 	}
 
-	if params.Category != "" {
-		termQuery := types.NewTermQuery()
-		termQuery.Value = params.Category
-		boolQuery.Must = append(boolQuery.Must, types.Query{Term: map[string]types.TermQuery{"category": *termQuery}})
+	// 3. 分类过滤
+	if len(params.Category) > 0 {
+		boolQuery.Filter = append(boolQuery.Filter, types.Query{
+			Terms: &types.TermsQuery{
+				TermsQuery: map[string]types.TermsQueryField{
+					"category": params.Category,
+				},
+			},
+		})
 	}
 
-	from := (params.PageInfo.Page - 1) * params.PageInfo.PageSize
+	// 4. 日期范围过滤
+	if params.DateRange.Start != "" && params.DateRange.End != "" {
+		rangeQuery := types.NewDateRangeQuery()
+		rangeQuery.Gte = &params.DateRange.Start
+		rangeQuery.Lte = &params.DateRange.End
+		boolQuery.Filter = append(boolQuery.Filter, types.Query{
+			Range: map[string]types.RangeQuery{"created_at": *rangeQuery},
+		})
+	}
 
+	// 6. 分页处理
+	page := params.PageInfo.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := params.PageInfo.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	from := (page - 1) * pageSize
+
+	// 7. 排序处理
 	sortField := params.SortField
 	sortOrder := params.SortOrder
 
 	if sortField == "" {
 		sortField = "created_at"
 	}
-
 	if sortOrder == "" {
 		sortOrder = "desc"
 	}
 
+	// 8. 构建高亮配置
+	highlight := &types.Highlight{
+		Fields: map[string]types.HighlightField{
+			"title": {
+				PreTags:  []string{"<em class='highlight'>"},
+				PostTags: []string{"</em>"},
+			},
+			"abstract": {
+				PreTags:           []string{"<em class='highlight'>"},
+				PostTags:          []string{"</em>"},
+				NumberOfFragments: &[]int{2}[0],
+			},
+			"content": {
+				PreTags:           []string{"<em class='highlight'>"},
+				PostTags:          []string{"</em>"},
+				NumberOfFragments: &[]int{3}[0],
+				FragmentSize:      &[]int{150}[0],
+			},
+		},
+	}
+
+	// 10. 构建搜索请求
 	searchRequest := global.Es.Search().
 		Index(s.articleIndex).
 		Query(&types.Query{Bool: boolQuery}).
@@ -305,29 +364,44 @@ func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, err
 			},
 		}).
 		From(from).
-		Size(params.PageInfo.PageSize)
+		Size(pageSize).
+		Highlight(highlight)
 
+	// 12. 执行搜索
 	resp, err := searchRequest.Do(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("搜索文章失败: %w", err)
 	}
 
+	// 13. 处理搜索结果
 	articles := make([]Article, 0, int(resp.Hits.Total.Value))
 	for _, hit := range resp.Hits.Hits {
 		var article Article
 		if err := json.Unmarshal(hit.Source_, &article); err != nil {
-
-			global.Log.Error("解析文章数据失败", zap.String("error", err.Error()))
+			global.Log.Error("解析文章数据失败",
+				zap.String("error", err.Error()),
+				zap.String("document_id", *hit.Id_),
+			)
 			continue
-
 		}
+
+		// 处理高亮结果
+		if hit.Highlight != nil {
+			if titleHighlights, exists := hit.Highlight["title"]; exists && len(titleHighlights) > 0 {
+				article.Title = titleHighlights[0]
+			}
+			if abstractHighlights, exists := hit.Highlight["abstract"]; exists && len(abstractHighlights) > 0 {
+				article.Abstract = abstractHighlights[0]
+			}
+		}
+
 		articles = append(articles, article)
 	}
+
 	return &SearchResults{
 		Articles: articles,
 		Total:    resp.Hits.Total.Value,
 	}, nil
-
 }
 
 // ArticleExist 检查文章是否存在
@@ -357,33 +431,28 @@ func (s *ArticleService) GetArticleStats() (*ArticleStats, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, timeout)
 	defer cancel()
 
-	// 构建聚合查询
-	aggs := map[string]types.Aggregations{
-		"total_comments": {
-			Sum: &types.SumAggregation{
-				Field: &[]string{"comment_count"}[0],
-			},
-		},
-		"total_views": {
-			Sum: &types.SumAggregation{
-				Field: &[]string{"look_count"}[0],
-			},
-		},
-		"total_diggs": {
-			Sum: &types.SumAggregation{
-				Field: &[]string{"digg_count"}[0],
-			},
-		},
-		"total_collects": {
-			Sum: &types.SumAggregation{
-				Field: &[]string{"collects_count"}[0],
-			},
-		},
+	// 定义需要统计的字段
+	statsFields := map[string]string{
+		"total_comments": "comment_count",
+		"total_views":    "look_count",
+		"total_diggs":    "digg_count",
+		"total_collects": "collects_count",
 	}
 
+	// 构建聚合查询
+	aggs := make(map[string]types.Aggregations, len(statsFields))
+	for aggName, field := range statsFields {
+		aggs[aggName] = types.Aggregations{
+			Sum: &types.SumAggregation{
+				Field: &[]string{field}[0],
+			},
+		}
+	}
+
+	// 执行查询
 	resp, err := global.Es.Search().
 		Index(s.articleIndex).
-		Size(0).
+		Size(0). // 不需要返回文档，只需要聚合结果
 		Aggregations(aggs).
 		Do(ctx)
 
@@ -391,39 +460,29 @@ func (s *ArticleService) GetArticleStats() (*ArticleStats, error) {
 		return nil, fmt.Errorf("获取统计数据失败: %w", err)
 	}
 
+	// 处理结果
 	stats := &ArticleStats{
 		TotalArticles: resp.Hits.Total.Value,
 	}
 
-	if commentAgg, found := resp.Aggregations["total_comments"]; found {
-		var sumAgg types.SumAggregate
-		commentBytes, _ := json.Marshal(commentAgg)
-		if err := json.Unmarshal(commentBytes, &sumAgg); err == nil {
-			stats.TotalComments = int64(sumAgg.Value)
-		}
-	}
-
-	if viewsAgg, found := resp.Aggregations["total_views"]; found {
-		var sumAgg types.SumAggregate
-		viewBytes, _ := json.Marshal(viewsAgg)
-		if err := json.Unmarshal(viewBytes, &sumAgg); err == nil {
-			stats.TotalViews = int64(sumAgg.Value)
-		}
-	}
-
-	if diggsAgg, found := resp.Aggregations["total_diggs"]; found {
-		var sumAgg types.SumAggregate
-		diggsBytes, _ := json.Marshal(diggsAgg)
-		if err := json.Unmarshal(diggsBytes, &sumAgg); err == nil {
-			stats.TotalDiggs = int64(sumAgg.Value)
-		}
-	}
-
-	if collectsAgg, found := resp.Aggregations["total_collects"]; found {
-		var sumAgg types.SumAggregate
-		collectsBytes, _ := json.Marshal(collectsAgg)
-		if err := json.Unmarshal(collectsBytes, &sumAgg); err == nil {
-			stats.TotalCollects = int64(sumAgg.Value)
+	// 统一处理聚合结果
+	for aggName, field := range map[string]*int64{
+		"total_comments": &stats.TotalComments,
+		"total_views":    &stats.TotalViews,
+		"total_diggs":    &stats.TotalDiggs,
+		"total_collects": &stats.TotalCollects,
+	} {
+		if agg, found := resp.Aggregations[aggName]; found {
+			var sumAgg types.SumAggregate
+			aggBytes, _ := json.Marshal(agg)
+			if err := json.Unmarshal(aggBytes, &sumAgg); err != nil {
+				global.Log.Error("解析聚合结果失败",
+					zap.String("aggregation", aggName),
+					zap.Error(err),
+				)
+				continue
+			}
+			*field = int64(sumAgg.Value)
 		}
 	}
 
