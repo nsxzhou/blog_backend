@@ -1,11 +1,7 @@
 ﻿package models
 
 import (
-	"fmt"
-
 	"blog/global"
-
-	"gorm.io/gorm"
 )
 
 type CategoryModel struct {

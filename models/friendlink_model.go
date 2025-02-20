@@ -1,11 +1,9 @@
 ﻿package models
 
 import (
-	"fmt"
 
 	"blog/global"
 
-	"gorm.io/gorm"
 )
 
 type FriendLinkModel struct {
