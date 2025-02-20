@@ -1,0 +1,212 @@
+<<<<<<< HEAD
+### Go开发相关 ###
+# 编译的二进制文件
+=======
+# 二进制文件和可执行文件 #
+##########################
+/main                  # 默认的二进制文件名
+>>>>>>> blog_backend/main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+<<<<<<< HEAD
+*.a
+
+# 测试二进制文件（通过 `go test -c` 生成）
+*.test
+
+# 覆盖率工具输出
+*.out
+*.html
+coverage.txt
+
+# Go模块依赖目录
+vendor/
+/go/pkg/  # 本地模块缓存（根据项目结构调整）
+
+# Go工作区文件（如使用 `go work`）
+go.work
+
+
+### 构建输出目录 ###
+/bin/     # 常见二进制输出目录
+/build/   # 自定义构建目录
+/dist/    # 分发文件目录
+
+
+### IDE和编辑器配置 ###
+# JetBrains IDE (Goland等)
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Vim/Nvim交换文件
+*.swp
+*.swo
+*.swn
+
+
+### 操作系统生成文件 ###
+
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
+### 本地环境文件 ###
+.env
+.env.local
+.env*.local
+
+
+### 其他临时文件 ###
+/tmp/
+*.log
+*.bak
+
+
+settings.yaml
+/deploy/*
+=======
+*.test
+*.out
+
+# Gin项目特定文件 #
+##########################
+tmp/                   # 临时文件目录
+/uploads/*            # 上传文件目录
+/storage/*            # 存储文件目录
+/public/uploads/*     # 公共上传目录
+/runtime/*            # 运行时文件
+
+# 配置文件 #
+##########################
+.env
+.env.*
+*.local.yaml
+*.local.yml
+config.local.*
+*.local.toml
+.air.toml             # Air 热重载配置
+settings.yaml
+
+# Go语言特定 #
+##########################
+go.work
+*.test
+*.out
+/vendor/
+.idea/
+.vscode/
+__debug_bin
+.DS_Store
+coverage.txt
+*.syso
+
+# 数据库文件 #
+##########################
+*.db
+*.sqlite
+*.sqlite3
+/data/
+
+# 日志文件 #
+##########################
+/logs/
+*.log
+*.log.*
+debug.log
+
+# API文档 #
+##########################
+/docs/swagger/*        # Swagger文档
+/api/docs/*           # API文档
+swagger.json
+swagger.yaml
+
+# 缓存和临时文件 #
+##########################
+.cache/
+*.cache
+*.bak
+*.swp
+*.swo
+*~
+.tmp/
+
+# 证书和密钥 #
+##########################
+*.pem
+*.cert
+*.key
+*.crt
+*.csr
+/ssl/
+
+# 依赖管理 #
+##########################
+go.sum.bak
+
+# 前端资源（如果项目包含前端） #
+##########################
+/node_modules/
+/dist/
+/build/
+.sass-cache/
+*.css.map
+*.js.map
+
+# 测试文件 #
+##########################
+/coverage/
+/mocks/
+.pytest_cache/
+test/tmp/
+test.db
+
+# IDE和编辑器 #
+##########################
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+*.code-workspace
+
+# 系统文件 #
+##########################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.directory
+
+# Docker相关 #
+##########################
+.docker/data/
+docker-compose.override.yml
+
+# 监控和性能分析 #
+##########################
+/monitor/
+*.prof
+*.trace
+/metrics/
+>>>>>>> blog_backend/main

@@ -1,0 +1,74 @@
+# Air 配置文件 (https://github.com/cosmtrek/air)
+# 该配置适用于开发环境
+
+# 工作目录配置
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# 构建命令
+cmd = "go build -o tmp/main ."
+# 构建后的二进制文件路径
+bin = "tmp/main"
+# 完整的启动命令
+full_bin = "tmp/main"
+
+# 文件监控配置
+include_ext = [
+    "go", "tpl", "tmpl", "html",     # Go和模板文件
+    "css", "scss", "js", "ts",       # 前端资源
+    "json", "yaml", "toml",          # 配置文件
+    "sql", "env"                     # 其他资源
+]
+exclude_dir = [
+    "assets", "tmp", "vendor",       # 构建和依赖目录
+    "frontend/node_modules",         # 前端依赖
+    ".git", "docs",                  # 文档和版本控制
+    "tests/data",                    # 测试数据
+    "logs", "uploads"                # 运行时目录
+]
+exclude_file = [
+    "air.log",
+    "air_errors.log"
+]
+
+# 构建行为配置
+delay = 1000                         # 构建延迟（毫秒）
+stop_on_error = true                # 发生错误时停止旧进程
+send_interrupt = true               # 使用中断信号而不是强制终止
+kill_delay = "0.5s"                # 终止前等待时间
+
+# 重试配置
+[build.rerun]
+delay = "1s"                        # 重试延迟
+times = 3                          # 最大重试次数
+
+# 环境变量配置
+[env]
+GO_ENV = "development"             # Go环境
+GIN_MODE = "debug"                # Gin模式
+PORT = "8080"                     # 服务端口
+DEBUG = "true"                    # 调试模式
+
+# 日志配置
+[log]
+time = true                       # 显示时间戳
+level = "debug"                   # 日志级别
+format = "plain"                  # 日志格式
+output = "air.log"               # 日志文件
+
+# 界面显示配置
+[screen]
+clear_on_rebuild = true          # 重新构建时清屏
+
+# 颜色配置
+[color]
+main = "magenta"                 # 主要信息
+watcher = "cyan"                 # 监控信息
+build = "yellow"                 # 构建信息
+runner = "green"                 # 运行信息
+app = "white"                    # 应用日志
+
+# 其他配置
+[misc]
+clean_on_exit = true            # 退出时清理临时文件

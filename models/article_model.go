@@ -1,0 +1,454 @@
+package models
+
+import (
+	"blog/global"
+	"blog/models/ctypes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/refresh"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortorder"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+)
+
+// Article 文章模型
+type Article struct {
+	ID            string        `json:"id"`
+	CreatedAt     ctypes.MyTime `json:"created_at"`     // 创建时间
+	UpdatedAt     ctypes.MyTime `json:"updated_at"`     // 更新时间
+	Title         string        `json:"title"`          // 文章标题
+	Abstract      string        `json:"abstract"`       // 文章简介
+	Content       string        `json:"content"`        // 文章内容
+	LookCount     uint          `json:"look_count"`     // 浏览量
+	CommentCount  uint          `json:"comment_count"`  // 评论量
+	DiggCount     uint          `json:"digg_count"`     // 点赞量
+	CollectsCount uint          `json:"collects_count"` // 收藏量
+	UserID        uint          `json:"user_id"`        // 用户id
+	UserName      string        `json:"user_name"`      // 用户昵称
+	Category      string        `json:"category"`       // 文章分类
+	CoverID       uint          `json:"cover_id"`       // 封面id
+	CoverURL      string        `json:"cover_url"`      // 封面
+	Version       int64         `json:"version"`        // 版本号
+}
+
+const (
+	articleIndex = "article_index"
+	batchSize    = 1000
+	timeout      = time.Second * 5
+)
+
+// ArticleService 文章服务
+type ArticleService struct {
+	ctx          context.Context
+	articleIndex string
+	batchSize    int
+	timeout      time.Duration
+}
+
+// SearchParams 搜索参数
+type SearchParams struct {
+	PageInfo
+	Category  string `json:"category" form:"category"`
+	SortField string `json:"sort_field" form:"sort_field"`
+	SortOrder string `json:"sort_order" form:"sort_order"`
+}
+
+// SearchResult 搜索结果
+type SearchResults struct {
+	Articles []Article
+	Total    int64
+}
+
+// NewArticleService 创建文章服务实例
+func NewArticleService() *ArticleService {
+	return &ArticleService{
+		ctx:          context.Background(),
+		articleIndex: articleIndex,
+		batchSize:    batchSize,
+		timeout:      timeout,
+	}
+}
+
+// IndexCreate 创建索引
+func (s *ArticleService) IndexCreate() error {
+	if s.ctx == nil {
+
+		s.ctx = context.Background()
+	}
+
+	ctx, cancel := context.WithTimeout(s.ctx, timeout)
+	defer cancel()
+
+	exist, err := s.IndexExist()
+	if err != nil {
+		return fmt.Errorf("检查索引是否存在失败: %w", err)
+	}
+
+	if exist {
+		if err := s.IndexDelete(); err != nil {
+			return fmt.Errorf("删除已存在的索引失败: %w", err)
+		}
+	}
+
+	// 索引映射
+	properties := map[string]types.Property{
+		"title":          types.NewTextProperty(),
+		"abstract":       types.NewTextProperty(),
+		"content":        types.NewTextProperty(),
+		"category":       types.NewKeywordProperty(),
+		"created_at":     types.NewDateProperty(),
+		"updated_at":     types.NewDateProperty(),
+		"look_count":     types.NewIntegerNumberProperty(),
+		"comment_count":  types.NewIntegerNumberProperty(),
+		"digg_count":     types.NewIntegerNumberProperty(),
+		"collects_count": types.NewIntegerNumberProperty(),
+		"user_id":        types.NewIntegerNumberProperty(),
+		"user_name":      types.NewKeywordProperty(),
+		"cover_id":       types.NewIntegerNumberProperty(),
+		"cover_url":      types.NewKeywordProperty(),
+		"version":        types.NewLongNumberProperty(),
+	}
+
+	_, err = global.Es.Indices.Create(articleIndex).
+		Mappings(&types.TypeMapping{
+			// 设置索引的映射规则
+			Properties: properties,
+		}).
+		Do(ctx)
+
+	if err != nil {
+		return fmt.Errorf("创建索引失败: %w", err)
+	}
+	global.Log.Info("创建索引成功", zap.String("method", "IndexCreate"), zap.String("path", "models/article_model.go"))
+	return nil
+}
+
+// IndexExist 检查索引是否存在
+func (s *ArticleService) IndexExist() (bool, error) {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+	defer cancel()
+
+	resp, err := global.Es.Indices.Exists(s.articleIndex).Do(ctx)
+	if err != nil {
+		return false, fmt.Errorf("检查索引是否存在失败: %w", err)
+	}
+	return resp, nil
+}
+
+// IndexDelete 删除索引
+func (s *ArticleService) IndexDelete() error {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+
+	defer cancel()
+
+	_, err := global.Es.Indices.Delete(s.articleIndex).Do(ctx)
+
+	if err != nil {
+		return fmt.Errorf("删除索引失败: %w", err)
+	}
+	return nil
+}
+
+// ArticleCreate 创建文章
+func (s *ArticleService) ArticleCreate(article *Article) error {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+	defer cancel()
+
+	exists, err := s.ArticleExist(article.ID)
+	if err != nil {
+		return fmt.Errorf("检查文章是否存在失败: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("文章已存在")
+	}
+
+	article.CreatedAt = ctypes.MyTime(time.Now())
+	article.UpdatedAt = ctypes.MyTime(time.Now())
+	article.Version = 1
+
+	_, err = global.Es.Index(s.articleIndex).
+		Id(article.ID).
+		Document(article).
+		Refresh(refresh.True).
+		Do(ctx)
+
+	if err != nil {
+		return fmt.Errorf("创建文章失败: %w", err)
+	}
+
+	return nil
+}
+
+// ArticleGet 获取文章
+func (s *ArticleService) ArticleGet(id string) (*Article, error) {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+	defer cancel()
+
+	var result Article
+	resp, err := global.Es.Get(s.articleIndex, id).Do(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取文章失败: %w", err)
+	}
+
+	if err := json.Unmarshal(resp.Source_, &result); err != nil {
+		return nil, fmt.Errorf("解析文章数据失败: %w", err)
+	}
+
+	return &result, nil
+}
+
+// ArticleUpdate 更新文章
+func (s *ArticleService) ArticleUpdate(article *Article) error {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+	defer cancel()
+
+	article.Version++
+	article.UpdatedAt = ctypes.MyTime(time.Now())
+
+	_, err := global.Es.Update(s.articleIndex, article.ID).
+		Doc(article).
+		Refresh(refresh.True).
+		Do(ctx)
+
+	if err != nil {
+		return fmt.Errorf("更新文章失败: %w", err)
+	}
+
+	return nil
+}
+
+// ArticleDelete 批量删除文章
+func (s *ArticleService) ArticleDelete(ids []string) error {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+	defer cancel()
+
+	//errgroup errgroup 提供了一种同步机制，用于管理一组 goroutine 并收集它们的错误
+	g, ctx := errgroup.WithContext(ctx)
+
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+
+		batch := ids[i:end]
+
+		// 构建批量删除请求
+		bulkRequest := global.Es.Bulk().Index(s.articleIndex)
+
+		for _, id := range batch {
+			bulkRequest.DeleteOp(types.DeleteOperation{Id_: &id})
+		}
+
+		// 执行批量删除请求
+		g.Go(func() error {
+			resp, err := bulkRequest.Refresh(refresh.True).Do(ctx)
+			if err != nil {
+				return fmt.Errorf("批量删除文章失败: %w", err)
+			}
+
+			if resp.Errors {
+				return fmt.Errorf("批量删除文章时发生错误")
+			}
+
+			return nil
+		})
+	}
+	// g.Wait() 等待所有并发任务完成，返回第一个发生的错误（如果有）
+	return g.Wait()
+}
+
+// ArticleSearch 搜索文章
+func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, error) {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+
+	defer cancel()
+
+	boolQuery := types.NewBoolQuery()
+
+	if params.PageInfo.Key != "" {
+		multiMatchQuery := types.NewMultiMatchQuery()
+		multiMatchQuery.Query = params.PageInfo.Key
+		multiMatchQuery.Fields = []string{"title^3", "abstract^2", "content"}
+		boolQuery.Must = append(boolQuery.Must, types.Query{MultiMatch: multiMatchQuery})
+	}
+
+	if params.Category != "" {
+		termQuery := types.NewTermQuery()
+		termQuery.Value = params.Category
+		boolQuery.Must = append(boolQuery.Must, types.Query{Term: map[string]types.TermQuery{"category": *termQuery}})
+	}
+
+	from := (params.PageInfo.Page - 1) * params.PageInfo.PageSize
+
+	sortField := params.SortField
+	sortOrder := params.SortOrder
+
+	if sortField == "" {
+		sortField = "created_at"
+	}
+
+	if sortOrder == "" {
+		sortOrder = "desc"
+	}
+
+	searchRequest := global.Es.Search().
+		Index(s.articleIndex).
+		Query(&types.Query{Bool: boolQuery}).
+		Sort(types.SortOptions{
+			SortOptions: map[string]types.FieldSort{
+				sortField: {Order: &sortorder.SortOrder{Name: sortOrder}},
+			},
+		}).
+		From(from).
+		Size(params.PageInfo.PageSize)
+
+	resp, err := searchRequest.Do(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("搜索文章失败: %w", err)
+	}
+
+	articles := make([]Article, 0, int(resp.Hits.Total.Value))
+	for _, hit := range resp.Hits.Hits {
+		var article Article
+		if err := json.Unmarshal(hit.Source_, &article); err != nil {
+
+			global.Log.Error("解析文章数据失败", zap.String("error", err.Error()))
+			continue
+
+		}
+		articles = append(articles, article)
+	}
+	return &SearchResults{
+		Articles: articles,
+		Total:    resp.Hits.Total.Value,
+	}, nil
+
+}
+
+// ArticleExist 检查文章是否存在
+func (s *ArticleService) ArticleExist(id string) (bool, error) {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+	defer cancel()
+
+	exists, err := global.Es.Exists(s.articleIndex, id).Do(ctx)
+	if err != nil {
+		return false, fmt.Errorf("检查文章是否存在失败: %w", err)
+	}
+
+	return exists, nil
+}
+
+// ArticleStats 文章统计数据
+type ArticleStats struct {
+	TotalArticles int64 `json:"total_articles"` // 文章总数
+	TotalComments int64 `json:"total_comments"` // 评论数
+	TotalViews    int64 `json:"total_views"`    // 总浏览量
+	TotalDiggs    int64 `json:"total_diggs"`    // 总点赞数
+	TotalCollects int64 `json:"total_collects"` // 总收藏数
+}
+
+// GetArticleStats 获取文章统计数据
+func (s *ArticleService) GetArticleStats() (*ArticleStats, error) {
+	ctx, cancel := context.WithTimeout(s.ctx, timeout)
+	defer cancel()
+
+	// 构建聚合查询
+	aggs := map[string]types.Aggregations{
+		"total_comments": {
+			Sum: &types.SumAggregation{
+				Field: &[]string{"comment_count"}[0],
+			},
+		},
+		"total_views": {
+			Sum: &types.SumAggregation{
+				Field: &[]string{"look_count"}[0],
+			},
+		},
+		"total_diggs": {
+			Sum: &types.SumAggregation{
+				Field: &[]string{"digg_count"}[0],
+			},
+		},
+		"total_collects": {
+			Sum: &types.SumAggregation{
+				Field: &[]string{"collects_count"}[0],
+			},
+		},
+	}
+
+	resp, err := global.Es.Search().
+		Index(s.articleIndex).
+		Size(0).
+		Aggregations(aggs).
+		Do(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("获取统计数据失败: %w", err)
+	}
+
+	stats := &ArticleStats{
+		TotalArticles: resp.Hits.Total.Value,
+	}
+
+	if commentAgg, found := resp.Aggregations["total_comments"]; found {
+		var sumAgg types.SumAggregate
+		commentBytes, _ := json.Marshal(commentAgg)
+		if err := json.Unmarshal(commentBytes, &sumAgg); err == nil {
+			stats.TotalComments = int64(sumAgg.Value)
+		}
+	}
+
+	if viewsAgg, found := resp.Aggregations["total_views"]; found {
+		var sumAgg types.SumAggregate
+		viewBytes, _ := json.Marshal(viewsAgg)
+		if err := json.Unmarshal(viewBytes, &sumAgg); err == nil {
+			stats.TotalViews = int64(sumAgg.Value)
+		}
+	}
+
+	if diggsAgg, found := resp.Aggregations["total_diggs"]; found {
+		var sumAgg types.SumAggregate
+		diggsBytes, _ := json.Marshal(diggsAgg)
+		if err := json.Unmarshal(diggsBytes, &sumAgg); err == nil {
+			stats.TotalDiggs = int64(sumAgg.Value)
+		}
+	}
+
+	if collectsAgg, found := resp.Aggregations["total_collects"]; found {
+		var sumAgg types.SumAggregate
+		collectsBytes, _ := json.Marshal(collectsAgg)
+		if err := json.Unmarshal(collectsBytes, &sumAgg); err == nil {
+			stats.TotalCollects = int64(sumAgg.Value)
+		}
+	}
+
+	return stats, nil
+}
+
+// IncrementCount 更新指定计数字段
+func (s *ArticleService) IncrementCount(id string, field string, increment int) error {
+	ctx, cancel := context.WithTimeout(s.ctx, timeout)
+	defer cancel()
+
+	script := fmt.Sprintf("ctx._source.%s += params.increment", field)
+	_, err := global.Es.Update(s.articleIndex, id).
+		Script(&types.InlineScript{
+			Source: script,
+			Params: map[string]json.RawMessage{
+				"increment": json.RawMessage(fmt.Sprintf("%d", increment)),
+			},
+		}).
+		Refresh(refresh.True).
+		Do(ctx)
+
+	if err != nil {
+		return fmt.Errorf("更新%s失败: %w", field, err)
+	}
+
+	return nil
+}
