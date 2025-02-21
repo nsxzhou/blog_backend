@@ -33,10 +33,7 @@ type CommentModel struct {
 }
 
 type CommentRequest struct {
-	Page     int    `json:"page" form:"page"`
-	Key      string `json:"key" form:"key"`
-	PageSize int    `json:"page_size" form:"page_size"`
-	SortBy   string `json:"sort_by" form:"sort_by" binding:"omitempty,oneof=created_at digg_count comment_count" validate:"omitempty,oneof=created_at digg_count comment_count"`
+	SortBy string `json:"sort_by" form:"sort_by" binding:"omitempty,oneof=created_at digg_count comment_count" validate:"omitempty,oneof=created_at digg_count comment_count"`
 }
 
 var (
@@ -272,37 +269,4 @@ func CommentDelete(commentID uint, articleID string) error {
 			Where("article_id = ?", articleID).
 			Updates(updates).Error
 	})
-}
-
-// GetCommentsByUserID 获取用户评论
-func GetCommentsByUserID(userID uint, req CommentRequest) ([]*CommentModel, int64, error) {
-	var total int64
-	var comments []*CommentModel
-
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.PageSize <= 0 {
-		req.PageSize = 10
-	}
-
-	offset := (req.Page - 1) * req.PageSize
-
-	query := global.DB.Model(&CommentModel{}).
-		Preload("User").
-		Where("user_id = ?", userID)
-
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	if err := query.
-		Order("created_at DESC").
-		Offset(offset).
-		Limit(req.PageSize).
-		Find(&comments).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return comments, total, nil
 }
