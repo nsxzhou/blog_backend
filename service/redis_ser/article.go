@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/bits-and-blooms/bloom/v3"
 	"go.uber.org/zap"
 )
 
@@ -20,21 +21,19 @@ const (
 	ViewIPExpire       = 10 * time.Minute // IP访问记录过期时间
 	ViewBatchSize      = 100              // 批量更新阈值
 	ViewUpdateInterval = time.Second      // 批量更新间隔
+
+	// 布隆过滤器相关常量
+	BloomFilterKey     = "article:bloom" // 布隆过滤器的键
+	BloomFilterSize    = 100000          // 预期元素数量
+	BloomFalsePositive = 0.01            // 期望的误判率
+
+	ArticleStatsExpire = 7 * 24 * time.Hour  // 文章统计数据过期时间
+	BloomFilterExpire  = 30 * 24 * time.Hour // 布隆过滤器过期时间
 )
 
 // 获取文章统计数据的Redis键
 func GetArticleStatsKey(articleID string) string {
-	return Prefix + ArticleStatsKey + articleID
-}
-
-// 设置文章浏览数（直接设置新值，不是增加）
-func SetArticleLookCount(articleID string, count int64) error {
-	return global.Redis.HSet(
-		context.Background(),
-		GetArticleStatsKey(articleID),
-		FieldLookCount,
-		count,
-	).Err()
+	return BuildKey(ArticlePrefix, articleID)
 }
 
 // 获取文章浏览数
@@ -52,7 +51,7 @@ func GetArticleLookCount(articleID string) (int64, error) {
 
 // 检查IP是否最近访问过文章
 func checkIPViewArticle(articleID, ip string) (bool, error) {
-	key := Prefix + "article:view:ip:" + articleID + ":" + ip
+	key := BuildKey(ArticlePrefix, "view", "ip", articleID, ip)
 	// SetNX 命令：设置一个锁，如果这个 IP 最近没访问过这篇文章，设置成功，返回 true
 	// 如果这个 IP 最近访问过这篇文章，设置失败，返回 false
 	return global.Redis.SetNX(
@@ -161,8 +160,87 @@ func SetArticleCommentCount(articleID string, count int64) error {
 	).Err()
 }
 
+// 获取布隆过滤器
+func getBloomFilter() (*bloom.BloomFilter, error) {
+	ctx := context.Background()
+
+	// 尝试从Redis获取布隆过滤器数据
+	data, err := global.Redis.Get(ctx, BloomFilterKey).Bytes()
+	if err != nil && err.Error() != "redis: nil" {
+		return nil, err
+	}
+
+	// 创建布隆过滤器
+	filter := bloom.NewWithEstimates(BloomFilterSize, BloomFalsePositive)
+
+	// 如果Redis中存在数据，则恢复布隆过滤器状态
+	if len(data) > 0 {
+		filter.UnmarshalBinary(data)
+	}
+
+	return filter, nil
+}
+
+// 保存布隆过滤器到Redis
+func saveBloomFilter(filter *bloom.BloomFilter) error {
+	ctx := context.Background()
+
+	// 将布隆过滤器序列化
+	data, err := filter.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	// 保存到Redis
+	return global.Redis.Set(ctx, BloomFilterKey, data, 0).Err()
+}
+
+// 将文章ID添加到布隆过滤器
+func AddToBloomFilter(articleID string) error {
+	filter, err := getBloomFilter()
+	if err != nil {
+		global.Log.Error("获取布隆过滤器失败", zap.Error(err))
+		return err
+	}
+
+	// 添加文章ID到布隆过滤器
+	filter.Add([]byte(articleID))
+
+	// 保存更新后的布隆过滤器
+	if err := saveBloomFilter(filter); err != nil {
+		global.Log.Error("保存布隆过滤器失败", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+// 检查文章ID是否可能存在
+func CheckBloomFilter(articleID string) (bool, error) {
+	filter, err := getBloomFilter()
+	if err != nil {
+		global.Log.Error("获取布隆过滤器失败", zap.Error(err))
+		return false, err
+	}
+
+	return filter.Test([]byte(articleID)), nil
+}
+
 // 获取文章所有统计数据
 func GetArticleStats(articleID string) (map[string]int64, error) {
+	// 先检查布隆过滤器
+	exists, err := CheckBloomFilter(articleID)
+	if err != nil {
+		global.Log.Error("检查布隆过滤器失败",
+			zap.String("articleID", articleID),
+			zap.Error(err))
+		// 如果布隆过滤器检查失败，继续执行原有逻辑
+	} else if !exists {
+		global.Log.Info("文章ID在布隆过滤器中不存在",
+			zap.String("articleID", articleID))
+		return nil, nil // 文章一定不存在
+	}
+
 	result, err := global.Redis.HGetAll(
 		context.Background(),
 		GetArticleStatsKey(articleID),
@@ -180,27 +258,6 @@ func GetArticleStats(articleID string) (map[string]int64, error) {
 	}
 
 	return stats, nil
-}
-
-// 批量设置文章统计数据（在原有基础上增加）
-func SetArticleStats(articleID string, stats map[string]int64) error {
-	// 先获取原有的统计数据
-	currentStats, err := GetArticleStats(articleID)
-	if err != nil && err.Error() != "redis: nil" {
-		return err
-	}
-
-	// 在原有基础上增加新的值
-	data := make(map[string]interface{})
-	for field, value := range stats {
-		data[field] = currentStats[field] + value
-	}
-
-	return global.Redis.HMSet(
-		context.Background(),
-		GetArticleStatsKey(articleID),
-		data,
-	).Err()
 }
 
 // 删除文章统计数据
