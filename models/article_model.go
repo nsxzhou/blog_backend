@@ -300,6 +300,7 @@ func (s *ArticleService) ArticleSearch(params SearchParams) (*SearchResults, err
 		// 	},
 		// })
 		//
+		// 匹配多个分类
 		for _, category := range params.Category {
 			boolQuery.Filter = append(boolQuery.Filter, types.Query{
 				Term: map[string]types.TermQuery{
@@ -419,6 +420,7 @@ func (s *ArticleService) GetArticleStats() (*ArticleStats, error) {
 	for aggName, field := range statsFields {
 		aggs[aggName] = types.Aggregations{
 			Sum: &types.SumAggregation{
+				// 聚合字段
 				Field: &[]string{field}[0],
 			},
 		}

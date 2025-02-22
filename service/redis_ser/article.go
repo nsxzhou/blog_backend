@@ -11,10 +11,8 @@ import (
 )
 
 const (
-	// 文章统计数据的键前缀
 	ArticleStatsKey = "article:stats:"
 
-	// 统计字段名
 	FieldLookCount    = "look_count"
 	FieldCommentCount = "comment_count"
 
@@ -22,14 +20,11 @@ const (
 	ViewBatchSize      = 100              // 批量更新阈值
 	ViewUpdateInterval = time.Second      // 批量更新间隔
 
-	// 布隆过滤器相关常量
 	BloomFilterKey     = "article:bloom" // 布隆过滤器的键
 	BloomFilterSize    = 100000          // 预期元素数量
 	BloomFalsePositive = 0.01            // 期望的误判率
 
-	ArticleStatsExpire = 7 * 24 * time.Hour  // 文章统计数据过期时间
-	BloomFilterExpire  = 30 * 24 * time.Hour // 布隆过滤器过期时间
-)
+)	
 
 // 获取文章统计数据的Redis键
 func GetArticleStatsKey(articleID string) string {

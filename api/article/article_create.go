@@ -18,8 +18,8 @@ import (
 type ArticleRequest struct {
 	Title    string   `json:"title" validate:"required,min=1,max=50"`
 	Abstract string   `json:"abstract" validate:"required,min=1,max=100"`
-	Category []string `json:"category" validate:"required,min=1,max=10,dive,min=1,max=10"`
-	Content  string   `json:"content" validate:"required,min=1,max=100000"`
+	Category []string `json:"category" validate:"required,min=1,max=10,dive,min=1,max=50"`
+	Content  string   `json:"content" validate:"required,min=1,max=200000"`
 	CoverID  uint     `json:"cover_id" validate:"required,gt=0"`
 }
 
