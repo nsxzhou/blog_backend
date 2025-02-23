@@ -5,6 +5,8 @@ import (
 	"context"
 	"strconv"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // 令牌黑名单相关
@@ -34,8 +36,12 @@ func InvalidateTokens(userID uint, accessToken string) error {
 func IsTokenBlacklisted(accessToken string) (bool, error) {
 	accessTokenKey := GetRedisKey(TokenBlacklist + accessToken)
 	result, err := global.Redis.Get(context.Background(), accessTokenKey).Result()
-	if err != nil {
-		return false, err
+	if err == redis.Nil {
+		// 如果key不存在，说明token不在黑名单中
+		return false, nil
+	}
+	if err != nil && err != redis.Nil {
+		return true, err
 	}
 	return result == "invalid", nil
 }
