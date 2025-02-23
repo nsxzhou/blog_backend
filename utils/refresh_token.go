@@ -3,7 +3,6 @@
 import (
 	"context"
 	"strconv"
-	"time"
 
 	"blog/global"
 	"blog/service/redis_ser"
@@ -26,8 +25,7 @@ func RefreshAccessToken(accessToken string, userID uint) (string, error) {
 
 	// 更新新的 refreshToken 到 Redis 中
 	if storedRefreshToken != newRefreshToken {
-		expiration := time.Duration(global.Config.Jwt.Expires) * 24 * time.Hour
-		err = global.Redis.Set(context.Background(), redis_ser.GetRedisKey(key), newRefreshToken, expiration).Err()
+		err = redis_ser.SetRefreshToken(userID, newRefreshToken)
 		if err != nil {
 			return "", err
 		}

@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-// 添加令牌黑名单相关
+// 令牌黑名单相关
 const (
 	TokenBlacklist = "token_blacklist:"
 	BlacklistTTL   = 30 * time.Minute
 )
 
-// 添加登出时令牌处理
+// 登出时令牌处理
 func InvalidateTokens(userID uint, accessToken string) error {
 	// 将 access token 加入黑名单
 	accessTokenKey := GetRedisKey(TokenBlacklist + accessToken)
@@ -50,5 +50,3 @@ func SetRefreshToken(userID uint, refreshToken string) error {
 	}
 	return nil
 }
-
-
