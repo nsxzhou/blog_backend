@@ -27,6 +27,7 @@ func buildLikeQuery(likes []string, key string) *gorm.DB {
 
 	likeQuery := global.DB.Where("")
 	for index, column := range likes {
+		// 构建一个 OR 连接的模糊查询条件
 		condition := fmt.Sprintf("%s LIKE ?", column)
 		value := fmt.Sprintf("%%%s%%", key)
 		if index == 0 {
