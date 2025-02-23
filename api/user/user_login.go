@@ -1,10 +1,6 @@
 package user
 
 import (
-	"context"
-	"strconv"
-	"time"
-
 	"blog/api/system"
 	"blog/global"
 	"blog/models"
@@ -86,11 +82,9 @@ func (u *User) UserLogin(c *gin.Context) {
 		return
 	}
 
-	expiration := time.Duration(global.Config.Jwt.Expires) * 24 * time.Hour
-	key := redis_ser.RefreshToken + strconv.Itoa(int(user.ID))
-	err = global.Redis.Set(context.Background(), redis_ser.GetRedisKey(key), refreshToken, expiration).Err()
+	err = redis_ser.SetRefreshToken(user.ID, refreshToken)
 	if err != nil {
-		global.Log.Error("global.Redis.Set() failed", zap.String("error", err.Error()))
+		global.Log.Error("redis_ser.SetRefreshToken() failed", zap.String("error", err.Error()))
 		res.Error(c, res.ServerError, "设置 refresh token 到 redis 失败")
 		return
 	}

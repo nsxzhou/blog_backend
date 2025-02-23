@@ -4,6 +4,7 @@ import (
 	"blog/global"
 	"blog/models/ctypes"
 	"blog/models/res"
+	"blog/service/redis_ser"
 	"blog/utils"
 	"net/http"
 
@@ -22,6 +23,21 @@ func JwtAuth() gin.HandlerFunc {
 			return
 		}
 		tokenString = tokenString[7:]
+
+		// 检查令牌是否在黑名单中
+		isBlacklisted, err := redis_ser.IsTokenBlacklisted(tokenString)
+		if err != nil {
+			global.Log.Error("检查令牌黑名单失败", zap.Error(err))
+			res.HttpError(c, http.StatusInternalServerError, res.ServerError, "服务器错误")
+			c.Abort()
+			return
+		}
+		if isBlacklisted {
+			res.HttpError(c, http.StatusUnauthorized, res.TokenInvalid, "token已失效")
+			c.Abort()
+			return
+		}
+
 		// 解析 Token
 		claims, err := utils.ParseToken(tokenString)
 		if err != nil {
