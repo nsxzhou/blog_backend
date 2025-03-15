@@ -7,11 +7,11 @@ tmp_dir = "tmp"
 
 [build]
 # 构建命令
-cmd = "go build -o tmp/main ."
+cmd = "go build -o tmp/blog-server ."
 # 构建后的二进制文件路径
-bin = "tmp/main"
+bin = "tmp/blog-server"
 # 完整的启动命令
-full_bin = "tmp/main"
+full_bin = "tmp/blog-server"
 
 # 文件监控配置
 include_ext = [

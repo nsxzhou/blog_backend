@@ -37,5 +37,6 @@ func InitRouter() *gin.Engine {
 	routerGroupApp.DataRouter()
 	routerGroupApp.VisitRouter()
 	routerGroupApp.LogRouter()
+	routerGroupApp.ChatRouter()
 	return router
 }

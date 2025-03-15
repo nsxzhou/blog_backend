@@ -138,3 +138,10 @@ func GetTotalUsers() (int64, error) {
 	err := global.DB.Model(&UserModel{}).Count(&count).Error
 	return count, err
 }
+
+// GetUserByID 根据ID获取用户
+func GetUserByID(id uint) (*UserModel, error) {
+	var user UserModel
+	err := global.DB.Where("id = ?", id).First(&user).Error
+	return &user, err
+}

@@ -3,6 +3,7 @@ package api
 import (
 	"blog/api/article"
 	"blog/api/category"
+	"blog/api/chat"
 	"blog/api/comment"
 	"blog/api/data"
 	"blog/api/friendlink"
@@ -24,6 +25,7 @@ type AppGroup struct {
 	DataApi       data.Data
 	VisitApi      visit.Visit
 	LogApi        log.Log
+	ChatApi       chat.Chat
 }
 
 var AppGroupApp = new(AppGroup)
