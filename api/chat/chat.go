@@ -14,9 +14,6 @@ import (
 	"blog/service/chat_ser"
 	"blog/utils"
 )
-
-type Chat struct{}
-
 // 确保聊天室只被初始化一次
 var (
 	chatRoom *chat_ser.ChatRoom

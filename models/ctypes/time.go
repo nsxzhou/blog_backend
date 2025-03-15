@@ -11,7 +11,7 @@ type MyTime time.Time
 // MarshalJSON 自定义序列化方法
 func (t MyTime) MarshalJSON() ([]byte, error) {
 	// 将 Time 转换为 time.Time 后格式化
-	stamp := time.Time(t).Format("2006-01-02")
+	stamp := time.Time(t).Format("2006-01-02 15:04:05")
 	// 注意要加上引号，因为 JSON 中的字符串必须用引号括起来
 	return []byte(`"` + stamp + `"`), nil
 }
@@ -21,7 +21,7 @@ func (t *MyTime) UnmarshalJSON(data []byte) error {
 	// 去掉引号
 	str := string(data)[1 : len(data)-1]
 	// 解析时间字符串
-	pt, err := time.Parse("2006-01-02", str)
+	pt, err := time.Parse("2006-01-02 15:04:05", str)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func (t *MyTime) UnmarshalJSON(data []byte) error {
 
 // String 实现 Stringer 接口，方便打印
 func (t MyTime) String() string {
-	return time.Time(t).Format("2006-01-02")
+	return time.Time(t).Format("2006-01-02 15:04:05")
 }
 
 // Value 实现 driver.Valuer 接口
@@ -53,7 +53,7 @@ func (t *MyTime) Scan(value interface{}) error {
 	case time.Time:
 		*t = MyTime(v)
 	case string:
-		pt, err := time.Parse("2006-01-02", v)
+		pt, err := time.Parse("2006-01-02 15:04:05", v)
 		if err != nil {
 			return err
 		}
