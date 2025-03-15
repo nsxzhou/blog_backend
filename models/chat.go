@@ -75,7 +75,7 @@ const (
 	WriteWait = 10 * time.Second
 
 	// 时间间隔，发送ping消息保持连接活跃
-	PingPeriod = 54 * time.Second
+	PingPeriod = 50 * time.Second
 
 	// 最长不活跃时间
 	PongWait = 60 * time.Second

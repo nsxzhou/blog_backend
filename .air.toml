@@ -10,7 +10,7 @@ tmp_dir = "tmp"
 cmd = "go build -o tmp/blog-server ."
 # 构建后的二进制文件路径
 bin = "tmp/blog-server"
-# 完整的启动命令
+# 完整的启动命令 
 full_bin = "tmp/blog-server"
 
 # 文件监控配置

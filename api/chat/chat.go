@@ -27,6 +27,9 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true // 在生产环境中应该限制来源
 	},
+	HandshakeTimeout: 10 * time.Second,
+	ReadBufferSize:   1024,
+	WriteBufferSize:  1024,
 }
 
 // HandleWebSocket 处理WebSocket连接

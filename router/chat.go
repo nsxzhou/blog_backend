@@ -7,6 +7,5 @@ import (
 
 func (routerGroupApp *RouterGroup) ChatRouter() {
 	chatApi := api.AppGroupApp.ChatApi
-	chatRouter := routerGroupApp.Group("chat")
-	chatRouter.GET("/ws", middleware.WSAuth(), chatApi.HandleWebSocket)
+	routerGroupApp.GET("/ws", middleware.WSAuth(), chatApi.HandleWebSocket)
 }
