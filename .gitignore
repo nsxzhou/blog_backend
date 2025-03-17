@@ -186,6 +186,8 @@ test.db
 .project
 .settings/
 *.code-workspace
+.cursor
+
 
 # 系统文件 #
 ##########################
