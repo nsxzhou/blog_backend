@@ -170,7 +170,6 @@ func (s *ArticleService) ArticleCreate(article *Article) error {
 	if exists {
 		return fmt.Errorf("文章已存在")
 	}
-
 	article.CreatedAt = ctypes.MyTime(time.Now())
 	article.UpdatedAt = ctypes.MyTime(time.Now())
 	article.Version = 1

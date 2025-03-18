@@ -3,29 +3,31 @@ package ctypes
 import (
 	"database/sql/driver"
 	"fmt"
+	"strings"
 	"time"
 )
 
 type MyTime time.Time
 
-// MarshalJSON 自定义序列化方法
+// MarshalJSON json.Marshal 的时候会自动调用这个方法
 func (t MyTime) MarshalJSON() ([]byte, error) {
-	// 将 Time 转换为 time.Time 后格式化
-	stamp := time.Time(t).Format("2006-01-02 15:04:05")
-	// 注意要加上引号，因为 JSON 中的字符串必须用引号括起来
+	stamp := time.Time(t).Format(time.RFC3339)
 	return []byte(`"` + stamp + `"`), nil
 }
 
-// UnmarshalJSON 自定义反序列化方法
+// UnmarshalJSON json.Unmarshal 的时候会自动调用这个方法
 func (t *MyTime) UnmarshalJSON(data []byte) error {
-	// 去掉引号
-	str := string(data)[1 : len(data)-1]
-	// 解析时间字符串
-	pt, err := time.Parse("2006-01-02 15:04:05", str)
+	s := strings.Trim(string(data), `"`)
+	// 先尝试解析 ISO-8601 格式
+	tmp, err := time.Parse(time.RFC3339, s)
 	if err != nil {
-		return err
+		// 如果解析失败，尝试解析传统格式
+		tmp, err = time.Parse(time.DateTime, s)
+		if err != nil {
+			return err
+		}
 	}
-	*t = MyTime(pt)
+	*t = MyTime(tmp)
 	return nil
 }
 
