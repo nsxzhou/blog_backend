@@ -14,6 +14,7 @@ import (
 	"blog/service/chat_ser"
 	"blog/utils"
 )
+
 // 确保聊天室只被初始化一次
 var (
 	chatRoom *chat_ser.ChatRoom
@@ -182,10 +183,10 @@ func (c *Chat) handleMessages(client *models.Client) {
 				client.Send <- errorMsg
 				continue
 			}
-
+			global.Log.Info("发送历史消息", zap.Any("history", history))
 			// 发送历史消息
 			historyMsg := &models.ChatMessage{
-				Type:     models.MessageTypeMessage,
+				Type:     models.MessageTypeHistory,
 				Messages: history,
 			}
 			client.Send <- historyMsg
