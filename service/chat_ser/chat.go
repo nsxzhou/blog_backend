@@ -278,6 +278,31 @@ func (cr *ChatRoom) GetOnlineUsers() []*models.User {
 
 // StoreMessage 存储消息到数据库
 func (cr *ChatRoom) StoreMessage(msg *models.ChatMessage) error {
+	// 1. 存储到内存历史记录
+	cr.storeMessageToHistory(msg)
+
+	// 2. 存储到数据库
+	// if msg.Type == models.MessageTypeMessage {
+	// 	// 创建数据库记录
+	// 	chatMsg := &models.ChatMessageDB{
+	// 		ID:        msg.ID,
+	// 		UserID:    msg.UserID,
+	// 		Username:  msg.Username,
+	// 		Content:   msg.Content,
+	// 		Status:    msg.Status,
+	// 		CreatedAt: msg.CreatedAt,
+	// 	}
+
+	// 	// 异步保存到数据库
+	// 	go func(message *models.ChatMessageDB) {
+	// 		if err := global.DB.Create(message).Error; err != nil {
+	// 			global.Log.Error("保存消息到数据库失败",
+	// 				zap.Error(err),
+	// 				zap.Uint64("message_id", message.ID))
+	// 		}
+	// 	}(chatMsg)
+	// }
+
 	return nil
 }
 
@@ -331,4 +356,64 @@ func (cr *ChatRoom) UpdateMessageStatus(id uint64, status string) error {
 	}
 
 	return nil
+}
+
+// StartHeartbeatCheck 启动心跳检测
+func (cr *ChatRoom) StartHeartbeatCheck() {
+	ticker := time.NewTicker(models.HeartbeatInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		cr.mutex.RLock()
+		now := time.Now()
+		inactiveClients := make([]uint64, 0)
+
+		// 检查非活跃客户端
+		for userID, client := range cr.clients {
+			if now.Sub(client.LastActive) > models.InactiveTimeout {
+				inactiveClients = append(inactiveClients, userID)
+				global.Log.Warn("检测到非活跃客户端",
+					zap.Uint64("user_id", userID),
+					zap.Duration("inactive_time", now.Sub(client.LastActive)))
+			}
+		}
+		cr.mutex.RUnlock()
+
+		// 移除非活跃客户端
+		for _, userID := range inactiveClients {
+			cr.mutex.Lock()
+			if client, exists := cr.clients[userID]; exists {
+				global.Log.Info("移除非活跃客户端", zap.Uint64("user_id", userID))
+				delete(cr.clients, userID)
+				close(client.Send)
+				client.Conn.Close()
+
+				// 广播用户离开消息
+				leaveMsg := &models.ChatMessage{
+					Type:      models.MessageTypeLeave,
+					UserID:    userID,
+					Content:   "由于长时间未活动，已离开聊天室",
+					CreatedAt: time.Now(),
+				}
+				cr.mutex.Unlock()
+
+				cr.Broadcast <- leaveMsg
+			} else {
+				cr.mutex.Unlock()
+			}
+		}
+	}
+}
+
+// GetAllClients 获取所有客户端
+func (cr *ChatRoom) GetAllClients() []*models.Client {
+	cr.mutex.RLock()
+	defer cr.mutex.RUnlock()
+
+	clients := make([]*models.Client, 0, len(cr.clients))
+	for _, client := range cr.clients {
+		clients = append(clients, client)
+	}
+
+	return clients
 }

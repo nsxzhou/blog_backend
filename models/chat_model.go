@@ -17,6 +17,9 @@ const (
 	MessageTypeReceipt = "receipt" // 已送达回执
 	MessageTypeError   = "error"   // 错误
 	MessageTypeHistory = "history" // 历史消息
+	MessageTypePing    = "ping"    // 客户端心跳
+	MessageTypePong    = "pong"    // 服务端回应
+	MessageTypeTyping  = "typing"  // 正在输入
 )
 
 // 消息状态常量
@@ -54,13 +57,15 @@ type ChatRoom interface {
 
 // Client 客户端连接
 type Client struct {
-	ID       uint64            // 客户端ID
-	UserID   uint64            // 用户ID
-	Username string            // 用户名
-	Conn     *websocket.Conn   // WebSocket连接
-	Send     chan *ChatMessage // 发送消息的通道
-	Room     ChatRoom          // 使用接口而非具体实现
-	JoinedAt time.Time         // 加入时间
+	ID                uint64            // 客户端ID
+	UserID            uint64            // 用户ID
+	Username          string            // 用户名
+	Conn              *websocket.Conn   // WebSocket连接
+	Send              chan *ChatMessage // 发送消息的通道
+	Room              ChatRoom          // 聊天室接口
+	JoinedAt          time.Time         // 加入时间
+	LastActive        time.Time         // 最后活跃时间
+	ReconnectAttempts int               // 重连尝试次数
 }
 
 // User 用户信息结构
@@ -82,6 +87,18 @@ const (
 
 	// 消息最大长度
 	MaxMessageSize = 4096
+
+	// 客户端重连尝试次数
+	MaxReconnectAttempts = 5
+
+	// 重连间隔时间
+	ReconnectInterval = 3 * time.Second
+
+	// 心跳检查间隔
+	HeartbeatInterval = 30 * time.Second
+
+	// 非活跃超时（连接可能断开但未正确关闭）
+	InactiveTimeout = 2 * PongWait
 )
 
 // WritePump 将消息从应用程序写入WebSocket连接
@@ -105,9 +122,17 @@ func (c *Client) WritePump() {
 			// 写入消息
 			err := c.Conn.WriteJSON(message)
 			if err != nil {
-				global.Log.Error("写入消息失败", zap.Error(err))
+				global.Log.Error("写入消息失败", zap.Error(err),
+					zap.Uint64("clientID", c.ID),
+					zap.Uint64("userID", c.UserID))
 				return
 			}
+
+			// 在消息写入成功后记录日志
+			global.Log.Debug("消息已发送到客户端",
+				zap.String("type", message.Type),
+				zap.Uint64("clientID", c.ID),
+				zap.Uint64("userID", c.UserID))
 
 			// 处理消息回执
 			if message.Type == MessageTypeMessage && message.UserID != c.UserID {

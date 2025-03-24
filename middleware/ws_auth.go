@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"blog/global"
-	"blog/models/res"
 	"blog/service/redis_ser"
 	"blog/utils"
 	"net/http"
@@ -14,6 +13,11 @@ import (
 // WSAuth 为WebSocket连接提供的JWT认证中间件
 func WSAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 添加详细日志
+		global.Log.Info("开始WebSocket认证",
+			zap.String("remote_addr", c.Request.RemoteAddr),
+			zap.String("path", c.Request.URL.Path))
+
 		// 从URL查询参数获取token
 		tokenString := c.Query("token")
 		if tokenString == "" {
@@ -23,8 +27,12 @@ func WSAuth() gin.HandlerFunc {
 
 		// 检查Token是否存在
 		if tokenString == "" {
-			res.HttpError(c, http.StatusUnauthorized, res.TokenMissing, "缺少token")
-			c.Abort()
+			global.Log.Warn("WebSocket认证失败: 缺少token",
+				zap.String("remote_addr", c.Request.RemoteAddr))
+
+			// WebSocket特殊处理：使用HTTP状态码来拒绝连接
+			c.Header("Sec-WebSocket-Version", "13")
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
@@ -32,13 +40,13 @@ func WSAuth() gin.HandlerFunc {
 		isBlacklisted, err := redis_ser.IsTokenBlacklisted(tokenString)
 		if err != nil {
 			global.Log.Error("检查令牌黑名单失败", zap.Error(err))
-			res.HttpError(c, http.StatusInternalServerError, res.ServerError, "服务器错误")
-			c.Abort()
+			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 		if isBlacklisted {
-			res.HttpError(c, http.StatusUnauthorized, res.TokenInvalid, "token已失效")
-			c.Abort()
+			global.Log.Warn("WebSocket认证失败: token已失效",
+				zap.String("remote_addr", c.Request.RemoteAddr))
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
@@ -50,8 +58,7 @@ func WSAuth() gin.HandlerFunc {
 				expiredClaims, parseErr := utils.ParseExpiredToken(tokenString)
 				if parseErr != nil {
 					global.Log.Error("解析过期token失败", zap.Error(parseErr))
-					res.HttpError(c, http.StatusUnauthorized, res.TokenRefreshFailed, "token已过期且无法刷新")
-					c.Abort()
+					c.AbortWithStatus(http.StatusUnauthorized)
 					return
 				}
 
@@ -59,25 +66,27 @@ func WSAuth() gin.HandlerFunc {
 				newAccessToken, refreshErr := utils.RefreshAccessToken(tokenString, expiredClaims.UserID)
 				if refreshErr != nil || newAccessToken == "" {
 					global.Log.Error("刷新token失败", zap.Error(refreshErr))
-					res.HttpError(c, http.StatusUnauthorized, res.TokenRefreshFailed, "token刷新失败")
-					c.Abort()
+					c.AbortWithStatus(http.StatusUnauthorized)
 					return
 				}
 
 				// 将新token设置到上下文
 				c.Set("new_token", newAccessToken)
 				c.Set("claims", expiredClaims)
+
+				global.Log.Info("WebSocket认证成功(已刷新token)",
+					zap.Uint64("user_id", uint64(expiredClaims.UserID)))
 				c.Next()
 				return
 			}
 			global.Log.Error("无效token", zap.Error(err))
-			res.HttpError(c, http.StatusUnauthorized, res.TokenInvalid, "token无效")
-			c.Abort()
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		// 将用户信息保存到上下文
 		c.Set("claims", claims)
+		global.Log.Info("WebSocket认证成功", zap.Uint64("user_id", uint64(claims.UserID)))
 		c.Next()
 	}
 }

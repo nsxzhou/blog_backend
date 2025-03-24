@@ -23,19 +23,30 @@ var (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // 在生产环境中应该限制来源
+		// 生产环境应验证来源
+		origin := r.Header.Get("Origin")
+		global.Log.Info("WebSocket连接请求", zap.String("origin", origin))
+		return true
 	},
-	HandshakeTimeout: 10 * time.Second,
-	ReadBufferSize:   1024,
-	WriteBufferSize:  1024,
+	HandshakeTimeout: 15 * time.Second, // 增加握手超时
+	ReadBufferSize:   2048,             // 增加缓冲区大小
+	WriteBufferSize:  2048,
 }
 
 // HandleWebSocket 处理WebSocket连接
 func (c *Chat) HandleWebSocket(ctx *gin.Context) {
+	// 记录详细连接信息
+	global.Log.Info("新的WebSocket连接请求",
+		zap.String("remote_addr", ctx.Request.RemoteAddr),
+		zap.String("user_agent", ctx.Request.UserAgent()))
+
 	// 确保聊天室只初始化一次
 	roomOnce.Do(func() {
 		chatRoom = chat_ser.NewChatRoom()
 		go chatRoom.Run()
+
+		// 启动后台清理任务
+		go chatRoom.StartHeartbeatCheck()
 	})
 
 	_claims, exists := ctx.Get("claims")
@@ -46,38 +57,72 @@ func (c *Chat) HandleWebSocket(ctx *gin.Context) {
 	}
 
 	claims := _claims.(*utils.CustomClaims)
+	global.Log.Info("WebSocket用户已认证", zap.Uint64("user_id", uint64(claims.UserID)))
 
-	// 升级HTTP连接为WebSocket连接
+	// 升级HTTP连接为WebSocket
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
-		global.Log.Error("websocket upgrade error", zap.Error(err))
+		global.Log.Error("WebSocket升级失败",
+			zap.Error(err),
+			zap.String("remote_addr", ctx.Request.RemoteAddr))
 		return
 	}
 
+	global.Log.Info("WebSocket连接已建立",
+		zap.String("remote_addr", ctx.Request.RemoteAddr),
+		zap.Uint64("user_id", uint64(claims.UserID)))
+
+	// 设置连接属性
+	conn.SetReadLimit(1024 * 1024) // 1MB最大消息大小
+	conn.SetReadDeadline(time.Now().Add(models.PongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(models.PongWait))
+		return nil
+	})
+
+	// 获取用户信息
 	user, err := models.GetUserByID(claims.UserID)
 	if err != nil {
 		global.Log.Error("获取用户信息失败", zap.Error(err))
+		conn.Close()
 		return
 	}
 
+	// 生成客户端ID
 	id, err := utils.GenerateID()
 	if err != nil {
 		global.Log.Error("生成ID失败", zap.Error(err))
+		conn.Close()
 		return
+	}
+
+	// 检查用户是否已连接
+	if existingClient := chatRoom.GetClient(uint64(user.ID)); existingClient != nil {
+		// 关闭旧连接
+		global.Log.Warn("用户已有连接，关闭旧连接",
+			zap.Uint64("user_id", uint64(user.ID)))
+		close(existingClient.Send)
+
+		// 等待旧连接关闭
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// 创建客户端
 	client := &models.Client{
-		ID:       uint64(id),
-		UserID:   uint64(user.ID),
-		Username: user.Nickname,
-		Conn:     conn,
-		Send:     make(chan *models.ChatMessage, 256),
-		Room:     chatRoom,
-		JoinedAt: time.Now(),
+		ID:         uint64(id),
+		UserID:     uint64(user.ID),
+		Username:   user.Nickname,
+		Conn:       conn,
+		Send:       make(chan *models.ChatMessage, 256),
+		Room:       chatRoom,
+		JoinedAt:   time.Now(),
+		LastActive: time.Now(),
 	}
 
-	// 广播用户加入消息
+	// 先启动写入协程
+	go client.WritePump()
+
+	// 注册客户端
 	joinMsg := &models.ChatMessage{
 		Type:      models.MessageTypeJoin,
 		UserID:    client.UserID,
@@ -85,12 +130,10 @@ func (c *Chat) HandleWebSocket(ctx *gin.Context) {
 		CreatedAt: time.Now(),
 	}
 
-	// 注册新客户端并广播加入消息
 	chatRoom.Register <- client
 	chatRoom.Broadcast <- joinMsg
 
-	// 启动客户端消息处理
-	go client.WritePump()
+	// 启动读取协程
 	go c.handleMessages(client)
 }
 
@@ -115,6 +158,14 @@ func (c *Chat) handleMessages(client *models.Client) {
 		client.Conn.Close()
 	}()
 
+	// 设置连接参数
+	client.Conn.SetReadLimit(models.MaxMessageSize)
+	client.Conn.SetReadDeadline(time.Now().Add(models.PongWait))
+	client.Conn.SetPongHandler(func(string) error {
+		client.Conn.SetReadDeadline(time.Now().Add(models.PongWait))
+		return nil
+	})
+
 	for {
 		var message models.ChatMessage
 		err := client.Conn.ReadJSON(&message)
@@ -125,6 +176,8 @@ func (c *Chat) handleMessages(client *models.Client) {
 				websocket.CloseGoingAway,
 				websocket.CloseAbnormalClosure) {
 				global.Log.Error("websocket unexpected close", zap.Error(err))
+			} else {
+				global.Log.Error("读取消息错误", zap.Error(err))
 			}
 			break
 		}
