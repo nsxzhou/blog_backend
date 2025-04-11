@@ -8,6 +8,7 @@ import (
 	"blog/global"
 	"blog/models"
 	"blog/models/res"
+	"blog/service/redis_ser"
 	"blog/utils"
 
 	"github.com/gin-gonic/gin"
@@ -90,9 +91,9 @@ func (a *Article) ArticleCreate(c *gin.Context) {
 		res.Error(c, res.ServerError, "生成ID失败")
 		return
 	}
-
+	articleID := strconv.FormatInt(id, 10)
 	article := models.Article{
-		ID:       strconv.FormatInt(id, 10),
+		ID:       articleID,
 		Title:    req.Title,
 		Abstract: req.Abstract,
 		Category: req.Category,
@@ -109,7 +110,7 @@ func (a *Article) ArticleCreate(c *gin.Context) {
 		res.Error(c, res.ServerError, "创建文章失败")
 		return
 	}
+	redis_ser.AddToBloomFilter(articleID)
 	global.Log.Info("创建文章成功", zap.String("method", c.Request.Method), zap.String("path", c.Request.URL.Path))
 	res.Success(c, nil)
-
 }

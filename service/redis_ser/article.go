@@ -11,8 +11,6 @@ import (
 )
 
 const (
-	ArticleStatsKey = "article:stats:"
-
 	FieldLookCount    = "look_count"
 	FieldCommentCount = "comment_count"
 
@@ -24,7 +22,7 @@ const (
 	BloomFilterSize    = 100000          // 预期元素数量
 	BloomFalsePositive = 0.01            // 期望的误判率
 
-)	
+)
 
 // 获取文章统计数据的Redis键
 func GetArticleStatsKey(articleID string) string {

@@ -13,19 +13,24 @@ import (
 
 // SyncArticleData 同步文章数据从Redis到ES
 func SyncArticleData() {
+	global.Log.Info("开始同步文章数据")
 	// 创建文章服务实例
 	articleService := models.NewArticleService()
 
 	// 获取所有文章统计数据的键
 	ctx := context.Background()
-	pattern := redis_ser.Prefix + redis_ser.ArticleStatsKey + "*"
+	pattern := redis_ser.ArticlePrefix + "*"
 	iter := global.Redis.Scan(ctx, 0, pattern, 0).Iterator()
-
+	global.Log.Info("获取所有文章统计数据的键成功",
+		zap.String("pattern", pattern),
+	)
 	for iter.Next(ctx) {
 		key := iter.Val()
 		// 从键中提取文章ID
-		articleID := strings.TrimPrefix(key, redis_ser.Prefix+redis_ser.ArticleStatsKey)
-
+		articleID := strings.TrimPrefix(key, redis_ser.ArticlePrefix)
+		global.Log.Info("获取文章ID成功",
+			zap.String("article_id", articleID),
+		)
 		// 获取Redis中的统计数据
 		stats, err := redis_ser.GetArticleStats(articleID)
 		if err != nil {
@@ -34,9 +39,11 @@ func SyncArticleData() {
 				zap.String("error", err.Error()),
 			)
 			continue
-
 		}
-
+		global.Log.Info("获取Redis文章统计数据成功",
+			zap.String("article_id", articleID),
+			zap.Any("stats", stats),
+		)
 		// 获取ES中的文章数据
 		article, err := articleService.ArticleGet(articleID)
 		if err != nil {
@@ -46,6 +53,10 @@ func SyncArticleData() {
 			)
 			continue
 		}
+		global.Log.Info("获取ES文章数据成功",
+			zap.String("article_id", articleID),
+			zap.Any("article", article),
+		)
 
 		// 更新文章统计数据
 		needsUpdate := false
@@ -80,5 +91,5 @@ func SyncArticleData() {
 	if err := iter.Err(); err != nil {
 		global.Log.Error("遍历Redis键失败", zap.String("error", err.Error()))
 	}
-
+	global.Log.Info("同步文章数据完成")
 }

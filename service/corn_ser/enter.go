@@ -27,5 +27,6 @@ func CornInit() {
 	timezone, _ := time.LoadLocation("Asia/Shanghai")
 	Cron := cron.New(cron.WithSeconds(), cron.WithLocation(timezone))
 	Cron.AddFunc("0 */1 * * * *", SyncArticleData)
+	//Cron.AddFunc("* * * * * *", SyncArticleData)
 	Cron.Start()
 }
