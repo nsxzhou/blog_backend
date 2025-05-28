@@ -1,0 +1,63 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Go 编码规范
+
+## 命名规范
+
+1. **包名**: 使用小写单个单词，避免下划线或混合大小写
+   ```go
+   // 正确
+   package model
+   
+   // 错误
+   package userModel
+   ```
+
+2. **变量命名**:
+   - 局部变量: 驼峰式命名法 (如 `userId`)
+   - 全局变量: 首字母大写 (如 `DefaultTimeout`)
+   - 常量: 全大写，单词间用下划线分隔 (如 `MAX_CONNECTIONS`)
+
+3. **函数/方法**:
+   - 公开函数: 首字母大写 (如 `CreateUser`)
+   - 私有函数: 首字母小写 (如 `validateUser`)
+
+## 错误处理
+
+1. 使用有意义的错误信息
+   ```go
+   // 正确
+   return nil, fmt.Errorf("failed to connect to database: %w", err)
+   
+   // 错误
+   return nil, errors.New("error")
+   ```
+
+2. 检查并处理所有错误，不忽略任何错误返回
+
+## 注释规范
+
+1. 所有导出的函数、类型和变量都应有注释
+   ```go
+   // User 表示系统中的用户实体
+   type User struct {
+       ID   int64  `json:"id"`
+       Name string `json:"name"`
+   }
+   
+   // FindByID 根据ID查找用户
+   func FindByID(id int64) (*User, error) {
+       // ...
+   }
+   ```
+
+2. 复杂的算法或业务逻辑需要详细注释
+
+## 代码格式化
+
+1. 使用 `gofmt` 或 `goimports` 格式化代码
+2. 缩进使用制表符而非空格
+3. 每行不超过100个字符

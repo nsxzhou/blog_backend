@@ -1,0 +1,59 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 数据库设计与操作规范
+
+## 数据库设计原则
+
+1. **表命名**:
+   - 使用单数形式 (如 `user` 而非 `users`)
+   - 使用下划线连接单词 (如 `blog_post`)
+   - 表名前缀对相关表进行分组 (如 `blog_post`, `blog_comment`)
+
+2. **字段命名**:
+   - 使用下划线命名法 (如 `created_at`)
+   - 主键统一命名为 `id`
+   - 外键命名为 `表名_id` (如 `user_id`)
+
+3. **公共字段**:
+   所有表应包含以下字段:
+   ```sql
+   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+   `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+   ```
+
+## 索引规范
+
+1. 为所有外键字段创建索引
+2. 为经常用于搜索的字段创建索引
+3. 为经常在 ORDER BY、GROUP BY 中使用的字段创建索引
+4. 索引命名规范: `idx_表名_字段名` (如 `idx_user_email`)
+
+## 查询优化
+
+1. 只查询需要的字段，避免 `SELECT *`
+2. 使用 `EXPLAIN` 分析查询性能
+3. 大数据集使用分页查询
+4. 复杂查询应使用存储过程或视图
+
+## GORM 使用指南
+
+1. **模型定义**:
+   ```go
+   type User struct {
+       ID        uint      `gorm:"primaryKey" json:"id"`
+       Name      string    `gorm:"size:100;not null" json:"name"`
+       Email     string    `gorm:"size:100;uniqueIndex" json:"email"`
+       CreatedAt time.Time `json:"created_at"`
+       UpdatedAt time.Time `json:"updated_at"`
+       DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+   }
+   ```
+
+2. **软删除**: 使用 `DeletedAt` 字段实现软删除
+3. **事务处理**: 复杂操作使用事务保证数据一致性
+4. **预加载**: 使用 `Preload` 避免 N+1 查询问题

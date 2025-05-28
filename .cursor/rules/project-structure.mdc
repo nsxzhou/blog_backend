@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 项目结构说明
+
+## 目录结构概览
+
+- `cmd/`: 包含项目的主要命令行入口
+- `config/`: 包含项目配置文件
+- `internal/`: 包含项目内部包，不对外部暴露
+  - `config/`: 内部配置处理
+  - `controller/`: HTTP 控制器
+  - `database/`: 数据库相关操作
+  - `dto/`: 数据传输对象
+  - `logger/`: 日志处理
+  - `middleware/`: HTTP 中间件
+  - `model/`: 数据模型
+  - `router/`: 路由定义
+  - `service/`: 业务逻辑服务
+- `logs/`: 存放日志文件
+- `pkg/`: 可被外部项目引用的包
+  - `auth/`: 认证相关功能
+  - `cache/`: 缓存相关功能
+  - `response/`: HTTP 响应处理
+- `main.go`: 应用程序入口点 [main.go](mdc:main.go)
+
+## 代码组织原则
+
+1. **职责分离**: 控制器负责处理HTTP请求，服务层负责业务逻辑，模型层负责数据交互
+2. **依赖方向**: 外层依赖内层，不允许内层依赖外层
+3. **包组织**: 按功能而非类型组织代码
