@@ -12,7 +12,7 @@ type Article struct {
 	Base
 	Title         string     `gorm:"type:varchar(255);not null" json:"title"`
 	Summary       string     `gorm:"type:text" json:"summary"`
-	Status        string     `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"`
+	Status        string     `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"` // 状态: draft published all
 	ViewCount     int        `gorm:"type:int(11);not null;default:0" json:"view_count"`
 	LikeCount     int        `gorm:"type:int(11);not null;default:0" json:"like_count"`
 	CommentCount  int        `gorm:"type:int(11);not null;default:0" json:"comment_count"`

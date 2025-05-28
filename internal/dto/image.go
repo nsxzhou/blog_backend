@@ -12,9 +12,9 @@ type ImageUploadRequest struct {
 // ImageQueryRequest 图片查询请求
 type ImageQueryRequest struct {
 	UsageType   string `form:"usage_type" binding:"omitempty,oneof=avatar cover content"` // 使用类型
-	ArticleID   *uint  `form:"article_id"`                                                // 文章ID
+	ArticleID   uint  `form:"article_id"`                                                // 文章ID
 	StorageType string `form:"storage_type" binding:"omitempty,oneof=local cos"`          // 存储类型
-	IsExternal  *int   `form:"is_external" binding:"omitempty,oneof=0 1 2"`                 // 是否外链
+	IsExternal  int   `form:"is_external" binding:"omitempty,oneof=0 1 2"`                 // 是否外链
 	StartDate   string `form:"start_date"`                                                // 开始日期
 	EndDate     string `form:"end_date"`                                                  // 结束日期
 	Page        int    `form:"page" binding:"required,min=1"`                             // 页码

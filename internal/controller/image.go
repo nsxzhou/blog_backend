@@ -258,7 +258,7 @@ func (api *ImageApi) GetImagesByArticle(c *gin.Context) {
 
 	// 设置文章ID
 	aid := uint(articleID)
-	req.ArticleID = &aid
+	req.ArticleID = aid
 
 	images, err := api.imageService.List(&req)
 	if err != nil {

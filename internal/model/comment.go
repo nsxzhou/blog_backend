@@ -7,7 +7,7 @@ type Comment struct {
 	ArticleID    uint   `gorm:"type:int(11);not null;index" json:"article_id"`
 	UserID       uint   `gorm:"type:int(11);not null;index" json:"user_id"`
 	ParentID     *uint  `gorm:"type:int(11);index" json:"parent_id"`
-	Status       string `gorm:"type:varchar(20);not null;default:'pending';index" json:"status"`
+	Status       string `gorm:"type:varchar(20);not null;default:'pending';index" json:"status"` // 状态: pending  approved rejected all
 	RejectReason string `gorm:"type:text" json:"reject_reason"`
 	LikeCount    int    `gorm:"type:int(11);not null;default:0" json:"like_count"`
 

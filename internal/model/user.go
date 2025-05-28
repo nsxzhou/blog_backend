@@ -17,12 +17,12 @@ type User struct {
 	Status               int       `gorm:"type:tinyint(2);not null;default:1" json:"status"`           // 0=禁用 1=正常 2=全部
 	LastLoginAt          time.Time `json:"last_login_at"`
 	LastLoginIP          string    `gorm:"type:varchar(50)" json:"last_login_ip"`
-	IsVerified           int       `gorm:"type:tinyint(1);not null;default:0" json:"is_verified"`
+	IsVerified           int       `gorm:"type:tinyint(1);not null;default:0" json:"is_verified"` // 0=未验证 1=已验证 2=全部
 	VerificationToken    string    `gorm:"type:varchar(100)" json:"-"`
 	ResetPasswordToken   string    `gorm:"type:varchar(100)" json:"-"`
 	ResetPasswordExpires time.Time `json:"-"`
 	Phone                string    `gorm:"type:varchar(20);uniqueIndex" json:"phone"`
-	IsPhoneVerified      int       `gorm:"type:tinyint(1);not null;default:0" json:"is_phone_verified"`
+	IsPhoneVerified      int       `gorm:"type:tinyint(1);not null;default:0" json:"is_phone_verified"` // 0=未验证 1=已验证 2=全部
 }
 
 // TableName 指定表名

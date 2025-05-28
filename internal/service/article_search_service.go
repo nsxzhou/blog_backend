@@ -449,19 +449,15 @@ func (s *ArticleSearchService) queryWithMySQL(req *dto.ArticleListRequest) (*dto
 
 	// 添加基础过滤条件
 	if req.Status == "" {
-		if req.Status == "all" {
-			query = query.Where("status IN ('draft', 'published')")
-		} else {
-			query = query.Where("status = ?", req.Status)
-		}
+		query = query.Where("status IN ('draft', 'published')")
+	} else {
+		query = query.Where("status = ?", req.Status)
 	} 
 	
-	if req.AccessType == "" {
-		if req.AccessType == "all" {
-			query = query.Where("access_type IN ('public', 'private', 'password')")
-		} else {
-			query = query.Where("access_type = ?", req.AccessType)
-		}
+	if req.AccessType != "" {
+		query = query.Where("access_type = ?", req.AccessType)
+	}else{
+		query = query.Where("access_type IN ('public', 'private', 'password')")
 	}
 
 	// 添加可选过滤条件

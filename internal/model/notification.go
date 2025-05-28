@@ -7,9 +7,9 @@ type Notification struct {
 	SenderID  *uint  `gorm:"type:int(11);index" json:"sender_id"`
 	ArticleID *uint  `gorm:"type:int(11);index" json:"article_id"`
 	CommentID *uint  `gorm:"type:int(11);index" json:"comment_id"`
-	Type      string `gorm:"type:varchar(20);not null;index" json:"type"`
+	Type      string `gorm:"type:varchar(20);not null;index" json:"type"` // 通知类型: like comment follow favorite
 	Content   string `gorm:"type:text;not null" json:"content"`
-	IsRead    int    `gorm:"type:tinyint(1);not null;default:0;index" json:"is_read"`
+	IsRead    int    `gorm:"type:tinyint(1);not null;default:0;index" json:"is_read"` // 0=未读 1=已读 2=全部
 
 	// 关联
 	User    User     `gorm:"foreignKey:UserID" json:"user,omitempty"`

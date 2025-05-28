@@ -143,8 +143,8 @@ type ArticleListRequest struct {
 	AuthorID   uint   `form:"author_id"`   // 作者ID
 	
 	// 过滤条件
-	Status     string `form:"status" binding:"omitempty,oneof=draft published all"`              // 状态
-	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password all"` // 访问类型
+	Status     string `form:"status" binding:"omitempty,oneof=draft published all"`              // 状态: draft published all
+	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password all"` // 访问类型: public private password all
 	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1 2"`                          // 是否置顶: 0=否 1=是 2=全部
 	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1 2"`                     // 是否原创: 0=转载 1=原创 2=全部
 	

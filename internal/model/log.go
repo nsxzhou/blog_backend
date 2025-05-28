@@ -24,8 +24,8 @@ func (LoginLog) TableName() string {
 type OperationLog struct {
 	Base
 	UserID        uint   `gorm:"type:int(11);not null;index" json:"user_id"`
-	Module        string `gorm:"type:varchar(50);not null;index" json:"module"`
-	Operation     string `gorm:"type:varchar(50);not null" json:"operation"`
+	Module        string `gorm:"type:varchar(50);not null;index" json:"module"` // 模块: user article comment notification
+	Operation     string `gorm:"type:varchar(50);not null" json:"operation"` // 操作: create update delete login logout
 	Description   string `gorm:"type:varchar(255)" json:"description"`
 	IP            string `gorm:"type:varchar(50);not null" json:"ip"`
 	RequestMethod string `gorm:"type:varchar(10)" json:"request_method"`

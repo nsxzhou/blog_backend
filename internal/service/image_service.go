@@ -204,19 +204,19 @@ func (s *ImageService) List(req *dto.ImageQueryRequest) (*dto.ImageListResponse,
 	}else{
 		query = query.Where("usage_type IN ('avatar', 'cover', 'content')")
 	}
-	if req.ArticleID != nil && *req.ArticleID > 0 {
-		query = query.Where("article_id = ?", *req.ArticleID)
+	if req.ArticleID > 0 {
+		query = query.Where("article_id = ?", req.ArticleID)
 	}
 	if req.StorageType != "" {
 		query = query.Where("storage_type = ?", req.StorageType)
 	}else{
 		query = query.Where("storage_type IN ('local', 'cos')")
 	}
-	if req.IsExternal != nil {
-		if *req.IsExternal == 2 {
+	if req.IsExternal >= 0 {
+		if req.IsExternal == 2 {
 			query = query.Where("is_external >= 0")
 		} else {
-			query = query.Where("is_external = ?", *req.IsExternal)
+			query = query.Where("is_external = ?", req.IsExternal)
 		}
 	}
 	if req.StartDate != "" {

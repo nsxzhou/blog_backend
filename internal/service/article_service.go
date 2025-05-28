@@ -434,12 +434,11 @@ func (s *ArticleService) GetUserArticles(userID uint, req *dto.ArticleQueryReque
 
 	// 应用过滤条件
 	if req.Status != "" {
-		if req.Status == "all" {
-			query = query.Where("status IN ('draft', 'published')")
-		} else {
-			query = query.Where("status = ?", req.Status)
-		}
+		query = query.Where("status = ?", req.Status)
+	}else{
+		query = query.Where("status IN ('draft', 'published')")
 	}
+
 	if req.CategoryID > 0 {
 		query = query.Where("category_id = ?", req.CategoryID)
 	}
@@ -460,11 +459,9 @@ func (s *ArticleService) GetUserArticles(userID uint, req *dto.ArticleQueryReque
 	}
 
 	if req.AccessType != "" {
-		if req.AccessType == "all" {
-			query = query.Where("access_type IN ('public', 'private', 'password')")
-		} else {
-			query = query.Where("access_type = ?", req.AccessType)
-		}
+		query = query.Where("access_type = ?", req.AccessType)
+	}else{
+		query = query.Where("access_type IN ('public', 'private', 'password')")
 	}
 
 	// 应用关键词搜索

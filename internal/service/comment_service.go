@@ -342,6 +342,8 @@ func (s *CommentService) List(req *dto.CommentListRequest, currentUserID *uint) 
 	// 状态筛选
 	if req.Status != "" {
 		query = query.Where("status = ?", req.Status)
+	} else {
+		query = query.Where("status IN ('pending', 'approved', 'rejected')")
 	}
 
 	// 父评论ID筛选（用于获取回复）
