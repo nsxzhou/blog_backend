@@ -233,15 +233,15 @@ func (s *ArticleService) Update(userID uint, articleID uint, req *dto.ArticleUpd
 }
 
 // Delete 删除文章
-func (s *ArticleService) Delete(userID uint, articleID uint) error {
+func (s *ArticleService) Delete(userID uint, articleID uint, role string) error {
 	// 查找文章并验证权限
 	var article model.Article
 	if err := s.db.First(&article, articleID).Error; err != nil {
 		return err
-	}
+	}	
 
 	// 检查权限
-	if article.AuthorID != userID {
+	if article.AuthorID != userID && role != "admin" {
 		return errors.New("没有权限删除此文章")
 	}
 
@@ -429,23 +429,42 @@ func (s *ArticleService) GetArticleDetail(articleID uint, currentUserID uint) (*
 func (s *ArticleService) GetUserArticles(userID uint, req *dto.ArticleQueryRequest) (*dto.ArticleListResponse, error) {
 	var articles []model.Article
 	var total int64
+	s.log.Infof("GetUserArticles userID: %d, req: %+v", userID, req)
 	query := s.db.Model(&model.Article{}).Where("author_id = ?", userID)
 
 	// 应用过滤条件
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		if req.Status == "all" {
+			query = query.Where("status IN ('draft', 'published')")
+		} else {
+			query = query.Where("status = ?", req.Status)
+		}
 	}
 	if req.CategoryID > 0 {
 		query = query.Where("category_id = ?", req.CategoryID)
 	}
+
 	if req.IsTop >= 0 {
-		query = query.Where("is_top = ?", req.IsTop)
+		if req.IsTop == 2 {
+			query = query.Where("is_top >= 0")
+		} else {
+			query = query.Where("is_top = ?", req.IsTop)
+		}
 	}
 	if req.IsOriginal >= 0 {
-		query = query.Where("is_original = ?", req.IsOriginal)
+		if req.IsOriginal == 2 {
+			query = query.Where("is_original >= 0")
+		} else {
+			query = query.Where("is_original = ?", req.IsOriginal)
+		}
 	}
+
 	if req.AccessType != "" {
-		query = query.Where("access_type = ?", req.AccessType)
+		if req.AccessType == "all" {
+			query = query.Where("access_type IN ('public', 'private', 'password')")
+		} else {
+			query = query.Where("access_type = ?", req.AccessType)
+		}
 	}
 
 	// 应用关键词搜索

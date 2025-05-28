@@ -161,7 +161,11 @@ func (s *CategoryService) List(req *dto.CategoryListRequest) (*dto.CategoryListR
 
 	// 可见性筛选
 	if req.IsVisible != nil {
-		query = query.Where("is_visible = ?", *req.IsVisible)
+		if *req.IsVisible == 2 {
+			query = query.Where("is_visible >= 0")
+		} else {
+			query = query.Where("is_visible = ?", *req.IsVisible)
+		}
 	}
 
 	// 计算总数

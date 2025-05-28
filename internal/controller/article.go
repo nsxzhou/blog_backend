@@ -103,6 +103,12 @@ func (api *ArticleApi) Delete(c *gin.Context) {
 		return
 	}
 
+	role, exists := c.Get("userRole")
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "未授权", err)
+		return
+	}
+
 	articleIDStr := c.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
@@ -110,7 +116,7 @@ func (api *ArticleApi) Delete(c *gin.Context) {
 		return
 	}
 
-	err = api.articleService.Delete(userID, uint(articleID))
+	err = api.articleService.Delete(userID, uint(articleID), role.(string))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Error(c, http.StatusNotFound, "文章不存在", err)

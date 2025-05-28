@@ -30,8 +30,8 @@ type ArticleUpdateRequest struct {
 	Status     string `json:"status" binding:"omitempty,oneof=draft published"`              // 状态
 	AccessType string `json:"access_type" binding:"omitempty,oneof=public private password"` // 访问类型
 	Password   string `json:"password"`                                                      // 访问密码
-	IsTop      int    `json:"is_top" binding:"omitempty,oneof=0 1"`                          // 是否置顶
-	IsOriginal int    `json:"is_original" binding:"omitempty,oneof=0 1"`                     // 是否原创
+	IsTop      int    `json:"is_top" binding:"omitempty,oneof=0 1 2"`                        // 是否置顶: 0=否 1=是 2=全部
+	IsOriginal int    `json:"is_original" binding:"omitempty,oneof=0 1 2"`               // 是否原创: 0=转载 1=原创 2=全部
 	SourceURL  string `json:"source_url"`                                                    // 转载来源URL
 	SourceName string `json:"source_name"`                                                   // 转载来源名称
 }
@@ -43,8 +43,8 @@ type ArticleQueryRequest struct {
 	CategoryID uint   `form:"category_id"`                                                                                    // 分类ID
 	TagID      uint   `form:"tag_id"`                                                                                         // 标签ID
 	AuthorID   uint   `form:"author_id"`                                                                                      // 作者ID
-	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1"`                                                           // 是否置顶
-	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1"`                                                      // 是否原创
+	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1 2"`                         // 是否置顶: 0=否 1=是 2=全部
+	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1 2"`                 // 是否原创: 0=转载 1=原创 2=全部
 	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password"`                                  // 访问类型
 	StartDate  string `form:"start_date"`                                                                                     // 开始日期
 	EndDate    string `form:"end_date"`                                                                                       // 结束日期
@@ -143,10 +143,10 @@ type ArticleListRequest struct {
 	AuthorID   uint   `form:"author_id"`   // 作者ID
 	
 	// 过滤条件
-	Status     string `form:"status" binding:"omitempty,oneof=draft published"`              // 状态
-	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password"` // 访问类型
-	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1"`                          // 是否置顶
-	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1"`                     // 是否原创
+	Status     string `form:"status" binding:"omitempty,oneof=draft published all"`              // 状态
+	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password all"` // 访问类型
+	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1 2"`                          // 是否置顶: 0=否 1=是 2=全部
+	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1 2"`                     // 是否原创: 0=转载 1=原创 2=全部
 	
 	// 时间范围
 	StartDate string `form:"start_date"` // 开始日期

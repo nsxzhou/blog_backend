@@ -6,7 +6,7 @@ type LoginLog struct {
 	UserID     uint   `gorm:"type:int(11);not null;index" json:"user_id"`
 	IP         string `gorm:"type:varchar(50);not null" json:"ip"`
 	UserAgent  string `gorm:"type:varchar(255)" json:"user_agent"`
-	Status     int    `gorm:"type:tinyint(1);not null;index" json:"status"` // 0失败 1成功
+	Status     int    `gorm:"type:tinyint(2);not null;index" json:"status"` // 0=失败 1=成功 2=全部
 	LoginType  string `gorm:"type:varchar(20);not null;default:'password'" json:"login_type"`
 	DeviceInfo string `gorm:"type:varchar(255)" json:"device_info"`
 	Location   string `gorm:"type:varchar(100)" json:"location"`

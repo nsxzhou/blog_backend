@@ -23,8 +23,8 @@ type Article struct {
 	WordCount     int        `gorm:"type:int(11);not null;default:0" json:"word_count"`
 	AccessType    string     `gorm:"type:varchar(20);not null;default:'public';index" json:"access_type"`
 	Password      string     `gorm:"type:varchar(100)" json:"password"`
-	IsTop         int        `gorm:"type:tinyint(1);not null;default:0;index" json:"is_top"`
-	IsOriginal    int        `gorm:"type:tinyint(1);not null;default:1" json:"is_original"`
+	IsTop         int        `gorm:"type:tinyint(2);not null;default:0;index" json:"is_top"`         // 0=否 1=是 2=全部
+	IsOriginal    int        `gorm:"type:tinyint(2);not null;default:1" json:"is_original"`          // 0=转载 1=原创 2=全部
 	SourceURL     string     `gorm:"type:varchar(255)" json:"source_url"`
 	SourceName    string     `gorm:"type:varchar(100)" json:"source_name"`
 	PublishedAt   *time.Time `gorm:"index" json:"published_at"`

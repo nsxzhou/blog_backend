@@ -449,15 +449,19 @@ func (s *ArticleSearchService) queryWithMySQL(req *dto.ArticleListRequest) (*dto
 
 	// 添加基础过滤条件
 	if req.Status == "" {
-		query = query.Where("status = ?", "published")
-	} else {
-		query = query.Where("status = ?", req.Status)
-	}
+		if req.Status == "all" {
+			query = query.Where("status IN ('draft', 'published')")
+		} else {
+			query = query.Where("status = ?", req.Status)
+		}
+	} 
 	
 	if req.AccessType == "" {
-		query = query.Where("access_type = ?", "public")
-	} else {
-		query = query.Where("access_type = ?", req.AccessType)
+		if req.AccessType == "all" {
+			query = query.Where("access_type IN ('public', 'private', 'password')")
+		} else {
+			query = query.Where("access_type = ?", req.AccessType)
+		}
 	}
 
 	// 添加可选过滤条件
@@ -475,11 +479,19 @@ func (s *ArticleSearchService) queryWithMySQL(req *dto.ArticleListRequest) (*dto
 	}
 
 	if req.IsTop > 0 {
-		query = query.Where("is_top = ?", req.IsTop)
+		if req.IsTop == 2 {
+			query = query.Where("is_top >= 0")
+		} else {
+			query = query.Where("is_top = ?", req.IsTop)
+		}
 	}
 
 	if req.IsOriginal > 0 {
-		query = query.Where("is_original = ?", req.IsOriginal)
+		if req.IsOriginal == 2 {
+			query = query.Where("is_original >= 0")
+		} else {
+			query = query.Where("is_original = ?", req.IsOriginal)
+		}
 	}
 
 	// 时间范围过滤

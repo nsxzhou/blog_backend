@@ -50,7 +50,7 @@ type UserResponse struct {
 	Nickname  string `json:"nickname"`
 	Bio       string `json:"bio"`
 	Role      string `json:"role"`
-	Status    int    `json:"status"`
+	Status    int    `json:"status"` // 0=禁用 1=正常 2=全部
 	CreatedAt string `json:"created_at"`
 }
 
