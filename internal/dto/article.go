@@ -134,6 +134,33 @@ type TagInfo struct {
 	Name string `json:"name"` // 标签名称
 }
 
+// ArticleListRequest 通用文章列表请求（合并搜索、热门、最新等功能）
+type ArticleListRequest struct {
+	// 搜索条件
+	Keyword    string `form:"keyword"`     // 搜索关键词（为空时不进行关键词搜索）
+	CategoryID uint   `form:"category_id"` // 分类ID
+	TagID      uint   `form:"tag_id"`      // 标签ID
+	AuthorID   uint   `form:"author_id"`   // 作者ID
+	
+	// 过滤条件
+	Status     string `form:"status" binding:"omitempty,oneof=draft published"`              // 状态
+	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password"` // 访问类型
+	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1"`                          // 是否置顶
+	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1"`                     // 是否原创
+	
+	// 时间范围
+	StartDate string `form:"start_date"` // 开始日期
+	EndDate   string `form:"end_date"`   // 结束日期
+	
+	// 排序方式
+	SortBy string `form:"sort_by" binding:"omitempty,oneof=latest hot score created_at published_at view_count like_count comment_count"` // 排序类型
+	Order  string `form:"order" binding:"omitempty,oneof=asc desc"`                                                                      // 排序方向
+	
+	// 分页
+	Page     int `form:"page" binding:"required,min=1"`             // 页码
+	PageSize int `form:"page_size" binding:"required,min=5,max=50"` // 每页条数
+}
+
 // ArticleSearchRequest 文章搜索请求
 type ArticleSearchRequest struct {
 	Keyword    string `form:"keyword" binding:"required"`                // 搜索关键词

@@ -238,7 +238,25 @@ func (api *ArticleApi) GetArticlesByCategory(c *gin.Context) {
 	response.Success(c, "获取成功", result)
 }
 
-// Search 搜索文章
+// GetArticleList 通用文章列表获取（合并搜索、热门、最新等功能）
+func (api *ArticleApi) GetArticleList(c *gin.Context) {
+	var req dto.ArticleListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "参数错误", err)
+		return
+	}
+
+	result, err := api.articleSearchService.GetArticleList(&req)
+	if err != nil {
+		api.logger.Errorf("获取文章列表失败: %v", err)
+		response.Error(c, http.StatusInternalServerError, "获取文章列表失败", err)
+		return
+	}
+
+	response.Success(c, "获取成功", result)
+}
+
+// Search 搜索文章 (保留向后兼容)
 func (api *ArticleApi) Search(c *gin.Context) {
 	var req dto.ArticleSearchRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -256,30 +274,56 @@ func (api *ArticleApi) Search(c *gin.Context) {
 	response.Success(c, "搜索成功", result)
 }
 
-// GetHotArticles 获取热门文章
+// GetHotArticles 获取热门文章 (保留向后兼容)
 func (api *ArticleApi) GetHotArticles(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	articles, err := api.articleSearchService.GetHotArticles(limit)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize := limit
+	if pageSize > 50 {
+		pageSize = 50
+	}
+
+	// 使用新的通用接口
+	req := &dto.ArticleListRequest{
+		SortBy:   "hot",
+		Page:     page,
+		PageSize: pageSize,
+	}
+
+	result, err := api.articleSearchService.GetArticleList(req)
 	if err != nil {
 		api.logger.Errorf("获取热门文章失败: %v", err)
 		response.Error(c, http.StatusInternalServerError, "获取热门文章失败", err)
 		return
 	}
 
-	response.Success(c, "获取成功", articles)
+	response.Success(c, "获取成功", result.Items)
 }
 
-// GetLatestArticles 获取最新文章
+// GetLatestArticles 获取最新文章 (保留向后兼容)
 func (api *ArticleApi) GetLatestArticles(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10000"))
-	articles, err := api.articleSearchService.GetLatestArticles(limit)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize := limit
+	if pageSize > 50 {
+		pageSize = 50
+	}
+
+	// 使用新的通用接口
+	req := &dto.ArticleListRequest{
+		SortBy:   "latest",
+		Page:     page,
+		PageSize: pageSize,
+	}
+
+	result, err := api.articleSearchService.GetArticleList(req)
 	if err != nil {
 		api.logger.Errorf("获取最新文章失败: %v", err)
 		response.Error(c, http.StatusInternalServerError, "获取最新文章失败", err)
 		return
 	}
 
-	response.Success(c, "获取成功", articles)
+	response.Success(c, "获取成功", result.Items)
 }
 
 // ArticleAction 文章交互操作（点赞、收藏等）

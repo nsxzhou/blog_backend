@@ -1,6 +1,6 @@
 module github.com/nsxzhou1114/blog-api
 
-go 1.24.0
+go 1.23.6
 
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.18.0

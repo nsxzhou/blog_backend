@@ -4,10 +4,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nsxzhou1114/blog-api/internal/controller"
 	"github.com/nsxzhou1114/blog-api/internal/middleware"
+	"github.com/nsxzhou1114/blog-api/internal/config"
 )
 
 // Setup 设置API路由
 func Setup(r *gin.Engine) {
+	// 静态文件服务 - 让前端可以访问本地上传的图片
+	cfg := config.GetConfig()
+	if cfg.Image.LocalEnabled {
+		// 提供静态文件服务，将 /uploads/images 路径映射到本地存储目录
+		r.Static("/uploads/images", cfg.Image.Upload.Local.UploadPath)
+		
+		// 为了兼容性，也提供 /images 路径的访问方式
+		r.Static("/images", cfg.Image.Upload.Local.UploadPath)
+	}
+
 	// API 路由组
 	api := r.Group("/api")
 
@@ -149,11 +160,13 @@ func setupArticleRoutes(api *gin.RouterGroup) {
 	{
 		// 获取文章详情
 		articleRoutes.GET("/:id", articleApi.GetDetail)
-		// 搜索文章
+		// 统一文章列表接口（推荐使用）
+		articleRoutes.GET("", articleApi.GetArticleList)
+		// 搜索文章（保留向后兼容）
 		articleRoutes.GET("/search", articleApi.Search)
-		// 获取热门文章
+		// 获取热门文章（保留向后兼容）
 		articleRoutes.GET("/hot", articleApi.GetHotArticles)
-		// 获取最新文章
+		// 获取最新文章（保留向后兼容）
 		articleRoutes.GET("/latest", articleApi.GetLatestArticles)
 		// 根据标签获取文章
 		articleRoutes.GET("/tag/:id", articleApi.GetArticlesByTag)
