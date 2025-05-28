@@ -254,7 +254,7 @@ func (s *ArticleInteractionService) GetUserFavorites(userID uint, page, pageSize
 	// 获取收藏文章列表
 	if err := s.db.Table("articles").
 		Joins("JOIN favorites ON articles.id = favorites.article_id").
-		Where("favorites.user_id = ? AND articles.deleted_at IS NULL", userID).
+		Where("favorites.user_id = ?", userID).
 		Preload("Author").
 		Preload("Category").
 		Preload("Tags").
@@ -308,7 +308,7 @@ func (s *ArticleInteractionService) GetUserFavorites(userID uint, page, pageSize
 
 	return &dto.ArticleListResponse{
 		Total: total,
-		Items: items,
+		List:  items,
 	}, nil
 }
 

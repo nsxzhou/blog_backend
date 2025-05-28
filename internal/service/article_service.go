@@ -536,7 +536,7 @@ func (s *ArticleService) GetUserArticles(userID uint, req *dto.ArticleQueryReque
 
 	return &dto.ArticleListResponse{
 		Total: total,
-		Items: items,
+		List:  items,
 	}, nil
 }
 

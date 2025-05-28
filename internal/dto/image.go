@@ -73,7 +73,7 @@ type ImageDetailResponse struct {
 // ImageListResponse 图片列表响应
 type ImageListResponse struct {
 	Total int64           `json:"total"` // 总数
-	Items []ImageListItem `json:"items"` // 列表项
+	List  []ImageListItem `json:"list"`  // 列表项
 }
 
 // ImageUploadResponse 图片上传响应

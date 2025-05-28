@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/nsxzhou1114/blog-api/internal/database"
 	"github.com/nsxzhou1114/blog-api/internal/dto"
 	"github.com/nsxzhou1114/blog-api/internal/logger"
@@ -32,266 +33,6 @@ func NewArticleSearchService() *ArticleSearchService {
 		log: logger.GetSugaredLogger(),
 	}
 }
-
-// Search 搜索文章
-func (s *ArticleSearchService) Search(req *dto.ArticleSearchRequest) (*dto.ArticleSearchResponse, error) {
-	ctx := context.Background()
-
-	// 构建ES查询
-	var buf bytes.Buffer
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"bool": map[string]interface{}{
-				"must": []map[string]interface{}{
-					{
-						"multi_match": map[string]interface{}{
-							"query":  req.Keyword,
-							"fields": []string{"title^3", "content^2", "summary^2", "tags"},
-							"type":   "best_fields",
-						},
-					},
-					{
-						"term": map[string]interface{}{
-							"status": "published",
-						},
-					},
-				},
-				"filter": []map[string]interface{}{
-					{
-						"term": map[string]interface{}{
-							"access_type": "public",
-						},
-					},
-				},
-			},
-		},
-		"highlight": map[string]interface{}{
-			"fields": map[string]interface{}{
-				"title":   map[string]interface{}{},
-				"content": map[string]interface{}{},
-				"summary": map[string]interface{}{},
-			},
-			"pre_tags":            []string{"<em>"},
-			"post_tags":           []string{"</em>"},
-			"fragment_size":       150,
-			"number_of_fragments": 3,
-		},
-		"from": (req.Page - 1) * req.PageSize,
-		"size": req.PageSize,
-		"sort": []map[string]interface{}{
-			{"_score": map[string]interface{}{"order": "desc"}},
-			{"published_at": map[string]interface{}{"order": "desc"}},
-		},
-	}
-
-	// 添加可选过滤条件
-	if req.CategoryID > 0 {
-		filter := map[string]interface{}{
-			"term": map[string]interface{}{
-				"category_id": req.CategoryID,
-			},
-		}
-		query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"] = append(
-			query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"].([]map[string]interface{}),
-			filter,
-		)
-	}
-
-	if req.TagID > 0 {
-		// 先获取标签名称
-		var tag model.Tag
-		if err := s.db.Select("name").First(&tag, req.TagID).Error; err != nil {
-			return nil, err
-		}
-
-		filter := map[string]interface{}{
-			"term": map[string]interface{}{
-				"tags": tag.Name,
-			},
-		}
-		query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"] = append(
-			query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"].([]map[string]interface{}),
-			filter,
-		)
-	}
-
-	if req.AuthorID > 0 {
-		filter := map[string]interface{}{
-			"term": map[string]interface{}{
-				"author_id": req.AuthorID,
-			},
-		}
-		query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"] = append(
-			query["query"].(map[string]interface{})["bool"].(map[string]interface{})["filter"].([]map[string]interface{}),
-			filter,
-		)
-	}
-
-	if err := json.NewEncoder(&buf).Encode(query); err != nil {
-		return nil, err
-	}
-
-	// 执行搜索
-	res, err := s.esClient.Search(
-		s.esClient.Search.WithContext(ctx),
-		s.esClient.Search.WithIndex("articles"),
-		s.esClient.Search.WithBody(&buf),
-		s.esClient.Search.WithTrackTotalHits(true),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.IsError() {
-		return nil, fmt.Errorf("ES搜索错误: %s", res.String())
-	}
-
-	// 解析搜索结果
-	var result map[string]interface{}
-	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-
-	// 提取总数
-	total := int64(result["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
-
-	// 提取文章ID列表
-	hits := result["hits"].(map[string]interface{})["hits"].([]interface{})
-	articleIDs := make([]uint, 0, len(hits))
-	highlightMap := make(map[uint]map[string][]string)
-
-	for _, hit := range hits {
-		hitMap := hit.(map[string]interface{})
-		source := hitMap["_source"].(map[string]interface{})
-		articleID := uint(source["article_id"].(float64))
-		articleIDs = append(articleIDs, articleID)
-
-		// 提取高亮信息
-		if highlight, exists := hitMap["highlight"]; exists {
-			highlightFields := highlight.(map[string]interface{})
-			articleHighlight := make(map[string][]string)
-
-			// 处理标题高亮
-			if titleHighlight, exists := highlightFields["title"]; exists {
-				titles := make([]string, 0)
-				for _, title := range titleHighlight.([]interface{}) {
-					titles = append(titles, title.(string))
-				}
-				articleHighlight["title"] = titles
-			}
-
-			// 处理内容高亮
-			if contentHighlight, exists := highlightFields["content"]; exists {
-				contents := make([]string, 0)
-				for _, content := range contentHighlight.([]interface{}) {
-					contents = append(contents, content.(string))
-				}
-				articleHighlight["content"] = contents
-			}
-
-			// 处理摘要高亮
-			if summaryHighlight, exists := highlightFields["summary"]; exists {
-				summaries := make([]string, 0)
-				for _, summary := range summaryHighlight.([]interface{}) {
-					summaries = append(summaries, summary.(string))
-				}
-				articleHighlight["summary"] = summaries
-			}
-
-			highlightMap[articleID] = articleHighlight
-		}
-	}
-
-	// 如果没有找到文章，返回空结果
-	if len(articleIDs) == 0 {
-		return &dto.ArticleSearchResponse{
-			Total: 0,
-			Items: []dto.ArticleListItem{},
-		}, nil
-	}
-
-	// 从MySQL获取完整的文章信息
-	var articles []model.Article
-	if err := s.db.Preload("Author").Preload("Category").Preload("Tags").
-		Where("id IN ?", articleIDs).
-		Find(&articles).Error; err != nil {
-		return nil, err
-	}
-
-	// 按照搜索结果的顺序排序文章
-	sortedArticles := make([]model.Article, len(articleIDs))
-	articleMap := make(map[uint]model.Article)
-	for _, article := range articles {
-		articleMap[article.ID] = article
-	}
-
-	for i, id := range articleIDs {
-		if article, exists := articleMap[id]; exists {
-			sortedArticles[i] = article
-		}
-	}
-
-	// 转换为响应格式
-	items := make([]dto.ArticleListItem, 0, len(sortedArticles))
-	for _, article := range sortedArticles {
-		// 构建标签列表
-		tags := make([]dto.TagInfo, 0, len(article.Tags))
-		for _, tag := range article.Tags {
-			tags = append(tags, dto.TagInfo{
-				ID:   tag.ID,
-				Name: tag.Name,
-			})
-		}
-
-		// 使用高亮的摘要（如果有）
-		summary := article.Summary
-		if highlight, exists := highlightMap[article.ID]; exists {
-			if contentHighlights, exists := highlight["content"]; exists && len(contentHighlights) > 0 {
-				// 使用内容高亮作为摘要
-				summary = strings.Join(contentHighlights, "...")
-			} else if summaryHighlights, exists := highlight["summary"]; exists && len(summaryHighlights) > 0 {
-				// 使用摘要高亮
-				summary = strings.Join(summaryHighlights, "...")
-			}
-		}
-
-		var publishedAt time.Time
-		if article.PublishedAt != nil {
-			publishedAt = *article.PublishedAt
-		}
-
-		items = append(items, dto.ArticleListItem{
-			ID:            article.ID,
-			Title:         article.Title,
-			Summary:       summary,
-			CategoryID:    article.CategoryID,
-			CategoryName:  article.Category.Name,
-			AuthorID:      article.AuthorID,
-			AuthorName:    article.Author.Nickname,
-			CoverImage:    article.CoverImage,
-			ViewCount:     article.ViewCount,
-			LikeCount:     article.LikeCount,
-			CommentCount:  article.CommentCount,
-			FavoriteCount: article.FavoriteCount,
-			WordCount:     article.WordCount,
-			Status:        article.Status,
-			AccessType:    article.AccessType,
-			IsTop:         article.IsTop,
-			IsOriginal:    article.IsOriginal,
-			Tags:          tags,
-			CreatedAt:     article.CreatedAt,
-			UpdatedAt:     article.UpdatedAt,
-			PublishedAt:   publishedAt,
-		})
-	}
-
-	return &dto.ArticleSearchResponse{
-		Total: total,
-		Items: items,
-	}, nil
-}
-
 // SearchArticlesByTag 根据标签搜索文章
 func (s *ArticleSearchService) SearchArticlesByTag(tagID uint, page, pageSize int) (*dto.ArticleListResponse, error) {
 	var tag model.Tag
@@ -366,7 +107,7 @@ func (s *ArticleSearchService) SearchArticlesByTag(tagID uint, page, pageSize in
 
 	return &dto.ArticleListResponse{
 		Total: total,
-		Items: items,
+		List: items,
 	}, nil
 }
 
@@ -443,130 +184,8 @@ func (s *ArticleSearchService) SearchArticlesByCategory(categoryID uint, page, p
 
 	return &dto.ArticleListResponse{
 		Total: total,
-		Items: items,
+		List: items,
 	}, nil
-}
-
-// GetHotArticles 获取热门文章
-func (s *ArticleSearchService) GetHotArticles(limit int) ([]dto.ArticleListItem, error) {
-	var articles []model.Article
-
-	err := s.db.
-		Where("status = 'published' AND access_type = 'public'").
-		Order("view_count DESC, like_count DESC, comment_count DESC").
-		Limit(limit).
-		Preload("Author").
-		Preload("Category").
-		Preload("Tags").
-		Find(&articles).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	// 转换为响应格式
-	items := make([]dto.ArticleListItem, 0, len(articles))
-	for _, article := range articles {
-		tags := make([]dto.TagInfo, 0, len(article.Tags))
-		for _, tag := range article.Tags {
-			tags = append(tags, dto.TagInfo{
-				ID:   tag.ID,
-				Name: tag.Name,
-			})
-		}
-
-		var publishedAt time.Time
-		if article.PublishedAt != nil {
-			publishedAt = *article.PublishedAt
-		}
-
-		items = append(items, dto.ArticleListItem{
-			ID:            article.ID,
-			Title:         article.Title,
-			Summary:       article.Summary,
-			CategoryID:    article.CategoryID,
-			CategoryName:  article.Category.Name,
-			AuthorID:      article.AuthorID,
-			AuthorName:    article.Author.Nickname,
-			CoverImage:    article.CoverImage,
-			ViewCount:     article.ViewCount,
-			LikeCount:     article.LikeCount,
-			CommentCount:  article.CommentCount,
-			FavoriteCount: article.FavoriteCount,
-			WordCount:     article.WordCount,
-			Status:        article.Status,
-			AccessType:    article.AccessType,
-			IsTop:         article.IsTop,
-			IsOriginal:    article.IsOriginal,
-			Tags:          tags,
-			CreatedAt:     article.CreatedAt,
-			UpdatedAt:     article.UpdatedAt,
-			PublishedAt:   publishedAt,
-		})
-	}
-
-	return items, nil
-}
-
-// GetLatestArticles 获取最新文章
-func (s *ArticleSearchService) GetLatestArticles(limit int) ([]dto.ArticleListItem, error) {
-	var articles []model.Article
-
-	err := s.db.
-		Where("status = 'published' AND access_type = 'public'").
-		Order("published_at DESC").
-		Limit(limit).
-		Preload("Author").
-		Preload("Category").
-		Preload("Tags").
-		Find(&articles).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	// 转换为响应格式
-	items := make([]dto.ArticleListItem, 0, len(articles))
-	for _, article := range articles {
-		tags := make([]dto.TagInfo, 0, len(article.Tags))
-		for _, tag := range article.Tags {
-			tags = append(tags, dto.TagInfo{
-				ID:   tag.ID,
-				Name: tag.Name,
-			})
-		}
-
-		var publishedAt time.Time
-		if article.PublishedAt != nil {
-			publishedAt = *article.PublishedAt
-		}
-
-		items = append(items, dto.ArticleListItem{
-			ID:            article.ID,
-			Title:         article.Title,
-			Summary:       article.Summary,
-			CategoryID:    article.CategoryID,
-			CategoryName:  article.Category.Name,
-			AuthorID:      article.AuthorID,
-			AuthorName:    article.Author.Nickname,
-			CoverImage:    article.CoverImage,
-			ViewCount:     article.ViewCount,
-			LikeCount:     article.LikeCount,
-			CommentCount:  article.CommentCount,
-			FavoriteCount: article.FavoriteCount,
-			WordCount:     article.WordCount,
-			Status:        article.Status,
-			AccessType:    article.AccessType,
-			IsTop:         article.IsTop,
-			IsOriginal:    article.IsOriginal,
-			Tags:          tags,
-			CreatedAt:     article.CreatedAt,
-			UpdatedAt:     article.UpdatedAt,
-			PublishedAt:   publishedAt,
-		})
-	}
-
-	return items, nil
 }
 
 // CreateESIndex 创建ES索引
@@ -898,7 +517,7 @@ func (s *ArticleSearchService) queryWithMySQL(req *dto.ArticleListRequest) (*dto
 
 	return &dto.ArticleListResponse{
 		Total: total,
-		Items: items,
+		List: items,
 	}, nil
 }
 
@@ -981,7 +600,7 @@ func (s *ArticleSearchService) buildMySQLSort(sortBy, order string) string {
 }
 
 // processESResponse 处理ES响应
-func (s *ArticleSearchService) processESResponse(res *elasticsearch.Response) (*dto.ArticleListResponse, error) {
+func (s *ArticleSearchService) processESResponse(res *esapi.Response) (*dto.ArticleListResponse, error) {
 	// 解析搜索结果
 	var result map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
@@ -1024,7 +643,7 @@ func (s *ArticleSearchService) processESResponse(res *elasticsearch.Response) (*
 	if len(articleIDs) == 0 {
 		return &dto.ArticleListResponse{
 			Total: 0,
-			Items: []dto.ArticleListItem{},
+			List: []dto.ArticleListItem{},
 		}, nil
 	}
 
@@ -1054,7 +673,7 @@ func (s *ArticleSearchService) processESResponse(res *elasticsearch.Response) (*
 
 	return &dto.ArticleListResponse{
 		Total: total,
-		Items: items,
+		List: items,
 	}, nil
 }
 

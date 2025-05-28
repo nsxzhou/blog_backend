@@ -160,14 +160,8 @@ func setupArticleRoutes(api *gin.RouterGroup) {
 	{
 		// 获取文章详情
 		articleRoutes.GET("/:id", articleApi.GetDetail)
-		// 统一文章列表接口（推荐使用）
+		// 统一文章列表接口
 		articleRoutes.GET("", articleApi.GetArticleList)
-		// 搜索文章（保留向后兼容）
-		articleRoutes.GET("/search", articleApi.Search)
-		// 获取热门文章（保留向后兼容）
-		articleRoutes.GET("/hot", articleApi.GetHotArticles)
-		// 获取最新文章（保留向后兼容）
-		articleRoutes.GET("/latest", articleApi.GetLatestArticles)
 		// 根据标签获取文章
 		articleRoutes.GET("/tag/:id", articleApi.GetArticlesByTag)
 		// 根据分类获取文章

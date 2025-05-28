@@ -267,7 +267,7 @@ func (s *ImageService) List(req *dto.ImageQueryRequest) (*dto.ImageListResponse,
 
 	return &dto.ImageListResponse{
 		Total: total,
-		Items: items,
+		List:  items,
 	}, nil
 }
 

@@ -125,7 +125,7 @@ type SimpleArticle struct {
 // ArticleListResponse 文章列表响应
 type ArticleListResponse struct {
 	Total int64             `json:"total"` // 总数
-	Items []ArticleListItem `json:"items"` // 列表项
+	List []ArticleListItem `json:"list"` // 列表项
 }
 
 // TagInfo 标签信息(简化版)
@@ -159,22 +159,6 @@ type ArticleListRequest struct {
 	// 分页
 	Page     int `form:"page" binding:"required,min=1"`             // 页码
 	PageSize int `form:"page_size" binding:"required,min=5,max=50"` // 每页条数
-}
-
-// ArticleSearchRequest 文章搜索请求
-type ArticleSearchRequest struct {
-	Keyword    string `form:"keyword" binding:"required"`                // 搜索关键词
-	CategoryID uint   `form:"category_id"`                               // 分类ID
-	TagID      uint   `form:"tag_id"`                                    // 标签ID
-	AuthorID   uint   `form:"author_id"`                                 // 作者ID
-	Page       int    `form:"page" binding:"required,min=1"`             // 页码
-	PageSize   int    `form:"page_size" binding:"required,min=5,max=50"` // 每页条数
-}
-
-// ArticleSearchResponse 文章搜索响应
-type ArticleSearchResponse struct {
-	Total int64             `json:"total"` // 总数
-	Items []ArticleListItem `json:"items"` // 列表项
 }
 
 // ArticleStatusRequest 更新文章状态请求
