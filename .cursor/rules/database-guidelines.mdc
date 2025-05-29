@@ -50,10 +50,7 @@ alwaysApply: true
        Email     string    `gorm:"size:100;uniqueIndex" json:"email"`
        CreatedAt time.Time `json:"created_at"`
        UpdatedAt time.Time `json:"updated_at"`
-       DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
    }
    ```
-
-2. **软删除**: 使用 `DeletedAt` 字段实现软删除
-3. **事务处理**: 复杂操作使用事务保证数据一致性
-4. **预加载**: 使用 `Preload` 避免 N+1 查询问题
+2. **事务处理**: 复杂操作使用事务保证数据一致性
+3. **预加载**: 使用 `Preload` 避免 N+1 查询问题

@@ -29,10 +29,11 @@ func GetTokenBlacklist() *TokenBlacklist {
 }
 
 // AddToBlacklist 将令牌添加到黑名单
-func (b *TokenBlacklist) AddToBlacklist(token string, expireAt time.Time) {
+func (b *TokenBlacklist) AddToBlacklist(token string, expireAt time.Time) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	b.tokens[token] = expireAt
+	return nil
 }
 
 // IsBlacklisted 检查令牌是否在黑名单中

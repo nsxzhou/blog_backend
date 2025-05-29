@@ -37,8 +37,38 @@ type TokenPair struct {
 	TokenID      string `json:"token_id"`   // 令牌ID，用于客户端存储和管理
 }
 
+// JWTManager JWT管理器
+type JWTManager struct {
+	blacklist BlacklistInterface
+}
+
+var (
+	defaultJWTManager *JWTManager
+)
+
+// GetJWTManager 获取JWT管理器实例
+func GetJWTManager() *JWTManager {
+	if defaultJWTManager == nil {
+		// 根据配置选择黑名单类型，默认使用内存黑名单
+		blacklistType := RedisBlacklist
+		
+		// 这里可以从配置文件中读取黑名单类型
+		// 例如：blacklistType = BlacklistType(config.GlobalConfig.Auth.BlacklistType)
+		
+		defaultJWTManager = &JWTManager{
+			blacklist: GetBlacklist(blacklistType),
+		}
+	}
+	return defaultJWTManager
+}
+
+// SetBlacklistType 设置黑名单类型（用于测试或动态配置）
+func (j *JWTManager) SetBlacklistType(blacklistType BlacklistType) {
+	j.blacklist = GetBlacklist(blacklistType)
+}
+
 // GenerateTokenPair 生成访问令牌和刷新令牌对
-func GenerateTokenPair(userID uint, role string, remember bool) (*TokenPair, error) {
+func (j *JWTManager) GenerateTokenPair(userID uint, role string, remember bool) (*TokenPair, error) {
 	// 获取配置
 	accessExpire := time.Duration(config.GlobalConfig.JWT.AccessExpireSeconds) * time.Second
 	refreshExpire := time.Duration(config.GlobalConfig.JWT.RefreshExpireSeconds) * time.Second
@@ -72,40 +102,10 @@ func GenerateTokenPair(userID uint, role string, remember bool) (*TokenPair, err
 	}, nil
 }
 
-// generateToken 创建指定类型的JWT令牌
-func generateToken(userID uint, role string, tokenType TokenType, expiration time.Duration, tokenID string, previous string) (string, error) {
-	// 设置token过期时间
-	expireTime := time.Now().Add(expiration)
-
-	claims := Claims{
-		UserID:   userID,
-		Role:     role,
-		Type:     tokenType,
-		TokenID:  tokenID,
-		Previous: previous,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expireTime.Unix(),
-			IssuedAt:  time.Now().Unix(),
-			Issuer:    config.GlobalConfig.JWT.Issuer,
-		},
-	}
-
-	// 创建签名方法
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// 使用密钥签名并获得完整的编码字符串令牌
-	tokenString, err := token.SignedString([]byte(config.GlobalConfig.JWT.SecretKey))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
-}
-
 // ParseToken 解析JWT令牌
-func ParseToken(tokenString string) (*Claims, error) {
+func (j *JWTManager) ParseToken(tokenString string) (*Claims, error) {
 	// 检查令牌是否在黑名单中
-	if GetTokenBlacklist().IsBlacklisted(tokenString) {
+	if j.blacklist.IsBlacklisted(tokenString) {
 		return nil, errors.New("令牌已被撤销")
 	}
 
@@ -127,9 +127,9 @@ func ParseToken(tokenString string) (*Claims, error) {
 }
 
 // RefreshAccessToken 使用刷新令牌获取新的访问令牌
-func RefreshAccessToken(refreshTokenString string) (*TokenPair, error) {
+func (j *JWTManager) RefreshAccessToken(refreshTokenString string) (*TokenPair, error) {
 	// 解析刷新令牌
-	claims, err := ParseToken(refreshTokenString)
+	claims, err := j.ParseToken(refreshTokenString)
 	if err != nil {
 		return nil, err
 	}
@@ -159,9 +159,11 @@ func RefreshAccessToken(refreshTokenString string) (*TokenPair, error) {
 	}
 
 	// 将旧的刷新令牌加入黑名单
-	// 解析令牌并获取过期时间
 	expireTime := time.Unix(claims.ExpiresAt, 0)
-	GetTokenBlacklist().AddToBlacklist(refreshTokenString, expireTime)
+	err = j.blacklist.AddToBlacklist(refreshTokenString, expireTime)
+	if err != nil {
+		return nil, fmt.Errorf("添加令牌到黑名单失败: %w", err)
+	}
 
 	return &TokenPair{
 		AccessToken:  accessToken,
@@ -172,7 +174,7 @@ func RefreshAccessToken(refreshTokenString string) (*TokenPair, error) {
 }
 
 // RevokeToken 撤销令牌（登出时使用）
-func RevokeToken(tokenString string) error {
+func (j *JWTManager) RevokeToken(tokenString string) error {
 	// 解析令牌
 	claims, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(config.GlobalConfig.JWT.SecretKey), nil
@@ -186,11 +188,68 @@ func RevokeToken(tokenString string) error {
 	if claims, ok := claims.Claims.(*Claims); ok {
 		expireTime := time.Unix(claims.ExpiresAt, 0)
 		// 将令牌加入黑名单
-		GetTokenBlacklist().AddToBlacklist(tokenString, expireTime)
-		return nil
+		return j.blacklist.AddToBlacklist(tokenString, expireTime)
 	}
 
 	return errors.New("无效的令牌")
+}
+
+// RevokeAllUserTokens 撤销用户的所有令牌（强制登出）
+func (j *JWTManager) RevokeAllUserTokens(userID uint) error {
+	// 这里需要根据具体需求实现
+	// 可以在数据库中记录用户的令牌版本，或者使用其他方式
+	// 暂时返回未实现错误
+	return errors.New("功能未实现")
+}
+
+// GenerateTokenPair 生成访问令牌和刷新令牌对
+func GenerateTokenPair(userID uint, role string, remember bool) (*TokenPair, error) {
+	return GetJWTManager().GenerateTokenPair(userID, role, remember)
+}
+
+// ParseToken 解析JWT令牌
+func ParseToken(tokenString string) (*Claims, error) {
+	return GetJWTManager().ParseToken(tokenString)
+}
+
+// RefreshAccessToken 使用刷新令牌获取新的访问令牌
+func RefreshAccessToken(refreshTokenString string) (*TokenPair, error) {
+	return GetJWTManager().RefreshAccessToken(refreshTokenString)
+}
+
+// RevokeToken 撤销令牌
+func RevokeToken(tokenString string) error {
+	return GetJWTManager().RevokeToken(tokenString)
+}
+
+// generateToken 创建指定类型的JWT令牌
+func generateToken(userID uint, role string, tokenType TokenType, expiration time.Duration, tokenID string, previous string) (string, error) {
+	// 设置token过期时间
+	expireTime := time.Now().Add(expiration)
+
+	claims := Claims{
+		UserID:   userID,
+		Role:     role,
+		Type:     tokenType,
+		TokenID:  tokenID,
+		Previous: previous,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expireTime.Unix(),
+			IssuedAt:  time.Now().Unix(),
+			Issuer:    config.GlobalConfig.JWT.Issuer,
+		},
+	}
+
+	// 创建签名方法
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// 使用密钥签名并获得完整的编码字符串令牌
+	tokenString, err := token.SignedString([]byte(config.GlobalConfig.JWT.SecretKey))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
 }
 
 // generateTokenID 生成令牌唯一ID
