@@ -12,7 +12,7 @@ type Article struct {
 	Base
 	Title         string     `gorm:"type:varchar(255);not null" json:"title"`
 	Summary       string     `gorm:"type:text" json:"summary"`
-	Status        string     `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"` // 状态: draft published all
+	Status        string     `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"` // 状态: draft published
 	ViewCount     int        `gorm:"type:int(11);not null;default:0" json:"view_count"`
 	LikeCount     int        `gorm:"type:int(11);not null;default:0" json:"like_count"`
 	CommentCount  int        `gorm:"type:int(11);not null;default:0" json:"comment_count"`
@@ -23,8 +23,8 @@ type Article struct {
 	WordCount     int        `gorm:"type:int(11);not null;default:0" json:"word_count"`
 	AccessType    string     `gorm:"type:varchar(20);not null;default:'public';index" json:"access_type"`
 	Password      string     `gorm:"type:varchar(100)" json:"password"`
-	IsTop         int        `gorm:"type:tinyint(2);not null;default:0;index" json:"is_top"`         // 0=否 1=是 2=全部
-	IsOriginal    int        `gorm:"type:tinyint(2);not null;default:1" json:"is_original"`          // 0=转载 1=原创 2=全部
+	IsTop         int        `gorm:"type:tinyint(2);not null;default:0;index" json:"is_top"`         // 0=否 1=是
+	IsOriginal    int        `gorm:"type:tinyint(2);not null;default:1" json:"is_original"`          // 0=转载 1=原创
 	SourceURL     string     `gorm:"type:varchar(255)" json:"source_url"`
 	SourceName    string     `gorm:"type:varchar(100)" json:"source_name"`
 	PublishedAt   *time.Time `gorm:"index" json:"published_at"`

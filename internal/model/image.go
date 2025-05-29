@@ -13,7 +13,7 @@ type Image struct {
 	UserID      uint   `gorm:"type:int(11);not null;index" json:"user_id"`
 	UsageType   string `gorm:"type:varchar(20);index" json:"usage_type"` // 使用类型: avatar/cover/content
 	ArticleID   *uint  `gorm:"type:int(11);index" json:"article_id"`
-	IsExternal  int    `gorm:"type:tinyint(1);not null;default:0" json:"is_external"` // 是否外链: 0=否 1=是 2=全部
+	IsExternal  int    `gorm:"type:tinyint(1);not null;default:0" json:"is_external"` // 是否外链: 0=否 1=是
 	StorageType string `gorm:"type:varchar(20);not null;default:'local';index" json:"storage_type"` // 存储类型: local/cos
 
 	// 关联
