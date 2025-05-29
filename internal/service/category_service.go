@@ -235,20 +235,20 @@ func (s *CategoryService) GetHotCategories(limit int) (*dto.HotCategoryResponse,
 }
 
 // IncrementArticleCount 增加分类文章计数
-func (s *CategoryService) IncrementArticleCount(categoryID uint) error {
-	return s.db.Model(&model.Category{}).
-		Where("id = ?", categoryID).
-		UpdateColumn("article_count", gorm.Expr("article_count + ?", 1)).
-		Error
-}
+// func (s *CategoryService) IncrementArticleCount(categoryID uint) error {
+// 	return s.db.Model(&model.Category{}).
+// 		Where("id = ?", categoryID).
+// 		UpdateColumn("article_count", gorm.Expr("article_count + ?", 1)).
+// 		Error
+// }
 
 // DecrementArticleCount 减少分类文章计数
-func (s *CategoryService) DecrementArticleCount(categoryID uint) error {
-	return s.db.Model(&model.Category{}).
-		Where("id = ? AND article_count > 0", categoryID).
-		UpdateColumn("article_count", gorm.Expr("article_count - ?", 1)).
-		Error
-}
+// func (s *CategoryService) DecrementArticleCount(categoryID uint) error {
+// 	return s.db.Model(&model.Category{}).
+// 		Where("id = ? AND article_count > 0", categoryID).
+// 		UpdateColumn("article_count", gorm.Expr("article_count - ?", 1)).
+// 		Error
+// }
 
 // GenerateCategoryResponse 生成分类响应DTO
 func (s *CategoryService) GenerateCategoryResponse(category *model.Category) (*dto.CategoryResponse, error) {

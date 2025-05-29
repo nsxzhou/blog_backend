@@ -183,117 +183,117 @@ func (s *TagService) List(req *dto.TagListRequest) (*dto.TagListResponse, error)
 }
 
 // GetTagCloud 获取标签云
-func (s *TagService) GetTagCloud(limit int) (*dto.TagCloudResponse, error) {
-	if limit <= 0 {
-		limit = 30 // 默认显示30个
-	}
+// func (s *TagService) GetTagCloud(limit int) (*dto.TagCloudResponse, error) {
+// 	if limit <= 0 {
+// 		limit = 30 // 默认显示30个
+// 	}
 
-	var tags []model.Tag
-	if err := s.db.Model(&model.Tag{}).
-		Order("article_count DESC").
-		Where("article_count > 0").
-		Limit(limit).
-		Find(&tags).Error; err != nil {
-		return nil, err
-	}
+// 	var tags []model.Tag
+// 	if err := s.db.Model(&model.Tag{}).
+// 		Order("article_count DESC").
+// 		Where("article_count > 0").
+// 		Limit(limit).
+// 		Find(&tags).Error; err != nil {
+// 		return nil, err
+// 	}
 
-	resp := &dto.TagCloudResponse{
-		List: make([]dto.TagCloudItem, 0, len(tags)),
-	}
+// 	resp := &dto.TagCloudResponse{
+// 		List: make([]dto.TagCloudItem, 0, len(tags)),
+// 	}
 
-	for _, tag := range tags {
-		resp.List = append(resp.List, dto.TagCloudItem{
-			ID:           tag.ID,
-			Name:         tag.Name,
-			ArticleCount: tag.ArticleCount,
-		})
-	}
+// 	for _, tag := range tags {
+// 		resp.List = append(resp.List, dto.TagCloudItem{
+// 			ID:           tag.ID,
+// 			Name:         tag.Name,
+// 			ArticleCount: tag.ArticleCount,
+// 		})
+// 	}
 
-	return resp, nil
-}
+// 	return resp, nil
+// }
 
 // IncrementArticleCount 增加标签文章计数
-func (s *TagService) IncrementArticleCount(tagID uint) error {
-	return s.db.Model(&model.Tag{}).Where("id = ?", tagID).
-		UpdateColumn("article_count", gorm.Expr("article_count + ?", 1)).
-		Error
-}
+// func (s *TagService) IncrementArticleCount(tagID uint) error {
+// 	return s.db.Model(&model.Tag{}).Where("id = ?", tagID).
+// 		UpdateColumn("article_count", gorm.Expr("article_count + ?", 1)).
+// 		Error
+// }
 
 // DecrementArticleCount 减少标签文章计数
-func (s *TagService) DecrementArticleCount(tagID uint) error {
-	return s.db.Model(&model.Tag{}).Where("id = ? AND article_count > 0", tagID).
-		UpdateColumn("article_count", gorm.Expr("article_count - ?", 1)).
-		Error
-}
+// func (s *TagService) DecrementArticleCount(tagID uint) error {
+// 	return s.db.Model(&model.Tag{}).Where("id = ? AND article_count > 0", tagID).
+// 		UpdateColumn("article_count", gorm.Expr("article_count - ?", 1)).
+// 		Error
+// }
 
 // AddTagsToArticle 为文章添加标签
-func (s *TagService) AddTagsToArticle(articleID uint, tagIDs []uint) error {
-	if len(tagIDs) == 0 {
-		return nil
-	}
+// func (s *TagService) AddTagsToArticle(articleID uint, tagIDs []uint) error {
+// 	if len(tagIDs) == 0 {
+// 		return nil
+// 	}
 
-	// 验证所有标签是否存在
-	var count int64
-	if err := s.db.Model(&model.Tag{}).Where("id IN ?", tagIDs).Count(&count).Error; err != nil {
-		return err
-	}
-	if int(count) != len(tagIDs) {
-		return errors.New("部分标签不存在")
-	}
+// 	// 验证所有标签是否存在
+// 	var count int64
+// 	if err := s.db.Model(&model.Tag{}).Where("id IN ?", tagIDs).Count(&count).Error; err != nil {
+// 		return err
+// 	}
+// 	if int(count) != len(tagIDs) {
+// 		return errors.New("部分标签不存在")
+// 	}
 
-	// 开启事务
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		// 清除现有关联
-		if err := tx.Where("article_id = ?", articleID).Delete(&model.ArticleTag{}).Error; err != nil {
-			return err
-		}
+// 	// 开启事务
+// 	return s.db.Transaction(func(tx *gorm.DB) error {
+// 		// 清除现有关联
+// 		if err := tx.Where("article_id = ?", articleID).Delete(&model.ArticleTag{}).Error; err != nil {
+// 			return err
+// 		}
 
-		// 添加新关联
-		articleTags := make([]model.ArticleTag, 0, len(tagIDs))
-		for _, tagID := range tagIDs {
-			articleTags = append(articleTags, model.ArticleTag{
-				ArticleID: articleID,
-				TagID:     tagID,
-			})
-		}
+// 		// 添加新关联
+// 		articleTags := make([]model.ArticleTag, 0, len(tagIDs))
+// 		for _, tagID := range tagIDs {
+// 			articleTags = append(articleTags, model.ArticleTag{
+// 				ArticleID: articleID,
+// 				TagID:     tagID,
+// 			})
+// 		}
 
-		if err := tx.Create(&articleTags).Error; err != nil {
-			return err
-		}
+// 		if err := tx.Create(&articleTags).Error; err != nil {
+// 			return err
+// 		}
 
-		// 更新标签文章计数（这里可以优化，考虑到已有标签的情况）
-		for _, tagID := range tagIDs {
-			if err := s.UpdateTagArticleCount(tx, tagID); err != nil {
-				return err
-			}
-		}
+// 		// 更新标签文章计数（这里可以优化，考虑到已有标签的情况）
+// 		for _, tagID := range tagIDs {
+// 			if err := s.UpdateTagArticleCount(tx, tagID); err != nil {
+// 				return err
+// 			}
+// 		}
 
-		return nil
-	})
-}
+// 		return nil
+// 	})
+// }
 
 // UpdateTagArticleCount 更新标签文章计数
-func (s *TagService) UpdateTagArticleCount(tx *gorm.DB, tagID uint) error {
-	// 计算实际关联的文章数
-	var count int64
-	if err := tx.Model(&model.ArticleTag{}).Where("tag_id = ?", tagID).Count(&count).Error; err != nil {
-		return err
-	}
+// func (s *TagService) UpdateTagArticleCount(tx *gorm.DB, tagID uint) error {
+// 	// 计算实际关联的文章数
+// 	var count int64
+// 	if err := tx.Model(&model.ArticleTag{}).Where("tag_id = ?", tagID).Count(&count).Error; err != nil {
+// 		return err
+// 	}
 
-	// 更新标签的文章计数
-	return tx.Model(&model.Tag{}).Where("id = ?", tagID).Update("article_count", count).Error
-}
+// 	// 更新标签的文章计数
+// 	return tx.Model(&model.Tag{}).Where("id = ?", tagID).Update("article_count", count).Error
+// }
 
 // GetTagsByArticleID 获取文章的标签
-func (s *TagService) GetTagsByArticleID(articleID uint) ([]model.Tag, error) {
-	var tags []model.Tag
-	if err := s.db.Joins("JOIN article_tags ON article_tags.tag_id = tags.id").
-		Where("article_tags.article_id = ?", articleID).
-		Find(&tags).Error; err != nil {
-		return nil, err
-	}
-	return tags, nil
-}
+// func (s *TagService) GetTagsByArticleID(articleID uint) ([]model.Tag, error) {
+// 	var tags []model.Tag
+// 	if err := s.db.Joins("JOIN article_tags ON article_tags.tag_id = tags.id").
+// 		Where("article_tags.article_id = ?", articleID).
+// 		Find(&tags).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	return tags, nil
+// }
 
 // GenerateTagResponse 生成标签响应DTO
 func (s *TagService) GenerateTagResponse(tag *model.Tag) *dto.TagResponse {

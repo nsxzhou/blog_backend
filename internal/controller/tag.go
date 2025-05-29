@@ -159,19 +159,19 @@ func (api *TagApi) List(c *gin.Context) {
 }
 
 // GetTagCloud 获取标签云
-func (api *TagApi) GetTagCloud(c *gin.Context) {
-	limitStr := c.DefaultQuery("limit", "30")
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 {
-		limit = 30 // 默认30个
-	}
+// func (api *TagApi) GetTagCloud(c *gin.Context) {
+// 	limitStr := c.DefaultQuery("limit", "30")
+// 	limit, err := strconv.Atoi(limitStr)
+// 	if err != nil || limit <= 0 {
+// 		limit = 30 // 默认30个
+// 	}
 
-	tags, err := api.tagService.GetTagCloud(limit)
-	if err != nil {
-		api.logger.Errorf("获取标签云失败: %v", err)
-		response.Error(c, http.StatusInternalServerError, "获取标签云失败", err)
-		return
-	}
+// 	tags, err := api.tagService.GetTagCloud(limit)
+// 	if err != nil {
+// 		api.logger.Errorf("获取标签云失败: %v", err)
+// 		response.Error(c, http.StatusInternalServerError, "获取标签云失败", err)
+// 		return
+// 	}
 
-	response.Success(c, "获取成功", tags)
-}
+// 	response.Success(c, "获取成功", tags)
+// }

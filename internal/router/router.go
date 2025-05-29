@@ -107,7 +107,7 @@ func setupTagRoutes(api *gin.RouterGroup) {
 		// 获取标签列表
 		tagRoutes.GET("", tagApi.List)
 		// 获取标签云
-		tagRoutes.GET("/cloud", tagApi.GetTagCloud)
+		// tagRoutes.GET("/cloud", tagApi.GetTagCloud)
 		// 获取标签详情
 		tagRoutes.GET("/:id", tagApi.GetByID)
 	}

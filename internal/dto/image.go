@@ -48,8 +48,8 @@ type ImageListItem struct {
 	UpdatedAt    time.Time `json:"updated_at"`              // 更新时间
 }
 
-// ImageDetailResponse 图片详情响应
-type ImageDetailResponse struct {
+// ImageDetail 图片详情
+type ImageDetail struct {
 	ID           uint      `json:"id"`                      // 图片ID
 	URL          string    `json:"url"`                     // 图片URL
 	Path         string    `json:"path"`                    // 存储路径
@@ -70,14 +70,19 @@ type ImageDetailResponse struct {
 	UpdatedAt    time.Time `json:"updated_at"`              // 更新时间
 }
 
+// ImageDetailResponse 图片详情响应
+type ImageDetailResponse struct {
+	Image ImageDetail `json:"image"` // 图片
+}
+
 // ImageListResponse 图片列表响应
 type ImageListResponse struct {
 	Total int64           `json:"total"` // 总数
 	List  []ImageListItem `json:"list"`  // 列表项
 }
 
-// ImageUploadResponse 图片上传响应
-type ImageUploadResponse struct {
+// ImageUpload 图片上传
+type ImageUpload struct {
 	ID          uint   `json:"id"`           // 图片ID
 	URL         string `json:"url"`          // 图片URL
 	Path        string `json:"path"`         // 存储路径
@@ -88,6 +93,11 @@ type ImageUploadResponse struct {
 	MimeType    string `json:"mime_type"`    // MIME类型 
 	UsageType   string `json:"usage_type"`   // 使用类型: avatar cover content
 	StorageType string `json:"storage_type"` // 存储类型: local cos
+}
+
+// ImageUploadResponse 图片上传响应
+type ImageUploadResponse struct {
+	Image ImageUpload `json:"image"` // 图片
 }
 
 // ImageBatchDeleteRequest 批量删除图片请求

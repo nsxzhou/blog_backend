@@ -128,16 +128,18 @@ func (s *ImageService) Upload(userID uint, file *multipart.FileHeader, req *dto.
 
 	// 7. 返回响应
 	response := &dto.ImageUploadResponse{
-		ID:          imageModel.ID,
-		URL:         imageModel.URL,
-		Path:        imageModel.Path,
-		Filename:    imageModel.Filename,
-		Size:        imageModel.Size,
-		Width:       imageModel.Width,
-		Height:      imageModel.Height,
-		MimeType:    imageModel.MimeType,
-		UsageType:   imageModel.UsageType,
-		StorageType: imageModel.StorageType,
+		Image: dto.ImageUpload{
+			ID:          imageModel.ID,
+			URL:         imageModel.URL,
+			Path:        imageModel.Path,
+			Filename:    imageModel.Filename,
+			Size:        imageModel.Size,
+			Width:       imageModel.Width,
+			Height:      imageModel.Height,
+			MimeType:    imageModel.MimeType,
+			UsageType:   imageModel.UsageType,
+			StorageType: imageModel.StorageType,
+		},
 	}
 
 	return response, nil
@@ -161,6 +163,7 @@ func (s *ImageService) GetDetail(imageID uint) (*dto.ImageDetailResponse, error)
 	}
 
 	detail := &dto.ImageDetailResponse{
+		Image: dto.ImageDetail{
 		ID:          image.ID,
 		URL:         image.URL,
 		Path:        image.Path,
@@ -176,17 +179,18 @@ func (s *ImageService) GetDetail(imageID uint) (*dto.ImageDetailResponse, error)
 		StorageType: image.StorageType,
 		CreatedAt:   image.CreatedAt,
 		UpdatedAt:   image.UpdatedAt,
+		},
 	}
 
 	// 填充用户信息
 	if image.User.ID > 0 {
-		detail.UserName = image.User.Username
-		detail.UserAvatar = image.User.Avatar
+		detail.Image.UserName = image.User.Username
+		detail.Image.UserAvatar = image.User.Avatar
 	}
 
 	// 填充文章信息
 	if image.Article != nil && image.Article.ID > 0 {
-		detail.ArticleTitle = image.Article.Title
+		detail.Image.ArticleTitle = image.Article.Title
 	}
 
 	return detail, nil
