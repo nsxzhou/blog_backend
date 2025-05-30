@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -20,6 +21,11 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	articleService     *ArticleService
+	articleServiceOnce sync.Once
+)
+
 // ArticleService 文章服务
 type ArticleService struct {
 	db           *gorm.DB
@@ -31,15 +37,17 @@ type ArticleService struct {
 
 // NewArticleService 创建文章服务实例
 func NewArticleService() *ArticleService {
-	service := &ArticleService{
+	articleServiceOnce.Do(func() {
+		articleService = &ArticleService{
 		db:           database.GetDB(),
 		esClient:     database.GetES(),
 		log:          logger.GetSugaredLogger(),
 		cacheManager: cache.GetManager(),
 	}
 	
-	service.initializeCache()
-	return service
+		articleService.initializeCache()
+	})
+	return articleService
 }
 
 // initializeCache 初始化缓存

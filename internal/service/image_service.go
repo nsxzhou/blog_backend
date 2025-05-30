@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nsxzhou1114/blog-api/internal/config"
@@ -29,6 +30,11 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	imageService     *ImageService
+	imageServiceOnce sync.Once
+)
+
 // ImageService 图片服务
 type ImageService struct {
 	db     *gorm.DB
@@ -38,11 +44,14 @@ type ImageService struct {
 
 // NewImageService 创建图片服务实例
 func NewImageService() *ImageService {
-	return &ImageService{
-		db:     database.GetDB(),
-		log:    logger.GetSugaredLogger(),
-		config: config.GetConfig(),
-	}
+	imageServiceOnce.Do(func() {
+		imageService = &ImageService{
+			db:     database.GetDB(),
+			log:    logger.GetSugaredLogger(),
+			config: config.GetConfig(),
+		}
+	})
+	return imageService
 }
 
 // Upload 上传图片

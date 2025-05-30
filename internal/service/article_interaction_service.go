@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/nsxzhou1114/blog-api/internal/database"
@@ -13,6 +14,11 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	articleInteractionService     *ArticleInteractionService
+	articleInteractionServiceOnce sync.Once
+)
+
 // ArticleInteractionService 文章交互服务
 type ArticleInteractionService struct {
 	db  *gorm.DB
@@ -21,10 +27,13 @@ type ArticleInteractionService struct {
 
 // NewArticleInteractionService 创建文章交互服务实例
 func NewArticleInteractionService() *ArticleInteractionService {
-	return &ArticleInteractionService{
-		db:  database.GetDB(),
-		log: logger.GetSugaredLogger(),
-	}
+	articleInteractionServiceOnce.Do(func() {
+		articleInteractionService = &ArticleInteractionService{
+			db:  database.GetDB(),
+			log: logger.GetSugaredLogger(),
+		}
+	})
+	return articleInteractionService
 }
 
 // LikeArticle 点赞文章
