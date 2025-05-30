@@ -2,9 +2,9 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/nsxzhou1114/blog-api/internal/config"
 	"github.com/nsxzhou1114/blog-api/internal/controller"
 	"github.com/nsxzhou1114/blog-api/internal/middleware"
-	"github.com/nsxzhou1114/blog-api/internal/config"
 )
 
 // Setup 设置API路由
@@ -52,6 +52,20 @@ func setupUserRoutes(api *gin.RouterGroup) {
 		userRoutes.POST("/register", userApi.Register)
 		// 登录
 		userRoutes.POST("/login", userApi.Login)
+		// 忘记密码
+		userRoutes.POST("/forgot-password", userApi.ForgotPassword)
+		// 重置密码
+		userRoutes.POST("/reset-password", userApi.ResetPassword)
+		// 发送验证邮件
+		userRoutes.POST("/send-verification", userApi.SendVerificationEmail)
+		// 验证邮箱
+		userRoutes.POST("/verify-email", userApi.VerifyEmail)
+		// 获取用户详情（公开接口，可查看任何用户的公开信息）
+		userRoutes.GET("/:id", userApi.GetUserDetail)
+		// 获取指定用户粉丝列表（公开接口）
+		//userRoutes.GET("/:id/followers", userApi.GetUserFollowers)
+		// 获取指定用户关注列表（公开接口）
+		//userRoutes.GET("/:id/following", userApi.GetUserFollowing)
 	}
 
 	// 需要刷新令牌的路由
@@ -72,29 +86,30 @@ func setupUserRoutes(api *gin.RouterGroup) {
 		authUserRoutes.PUT("/me", userApi.UpdateUserInfo)
 		// 修改密码
 		authUserRoutes.POST("/change-password", userApi.ChangePassword)
-		// 在 setupUserRoutes 中添加关注相关接口
-		//authUserRoutes.POST("/follow/:id", userApi.FollowUser)        // 关注用户
-		//authUserRoutes.DELETE("/follow/:id", userApi.UnfollowUser)    // 取消关注
-		//authUserRoutes.GET("/followers", userApi.GetFollowers)        // 获取粉丝列表
-		//authUserRoutes.GET("/following", userApi.GetFollowing)        // 获取关注列表
-		//authUserRoutes.GET("/:id/followers", userApi.GetUserFollowers) // 获取指定用户粉丝
-		//authUserRoutes.GET("/:id/following", userApi.GetUserFollowing) // 获取指定用户关注
+		// 关注用户
+		authUserRoutes.POST("/follow/:id", userApi.FollowUser)
+		// 取消关注
+		authUserRoutes.DELETE("/follow/:id", userApi.UnfollowUser)
+		// 获取当前用户粉丝列表
+		authUserRoutes.GET("/followers", userApi.GetFollowers)
+		// 获取当前用户关注列表
+		authUserRoutes.GET("/following", userApi.GetFollowing)
 	}
 
-	// 在 setupUserRoutes 中添加管理员用户管理功能
-	// adminUserRoutes := api.Group("/users", middleware.AdminAuth())
-	// {
-	//     // 获取用户列表
-	//     adminUserRoutes.GET("", userApi.GetUserList)
-	//     // 获取用户详情
-	//     adminUserRoutes.GET("/:id", userApi.GetUserDetail)
-	//     // 更新用户状态
-	//     adminUserRoutes.PUT("/:id/status", userApi.UpdateUserStatus)
-	//     // 重置用户密码
-	//     adminUserRoutes.POST("/:id/reset-password", userApi.ResetUserPassword)
-	//     // 批量操作用户
-	//     adminUserRoutes.POST("/batch-action", userApi.BatchUserAction)
-	// }
+	// 需要管理员权限的路由
+	adminUserRoutes := api.Group("/users", middleware.AdminAuth())
+	{
+		// 获取用户列表
+		adminUserRoutes.GET("", userApi.GetUserList)
+		// 更新用户状态
+		adminUserRoutes.PUT("/:id/status", userApi.UpdateUserStatus)
+		// 重置用户密码
+		adminUserRoutes.POST("/:id/reset-password", userApi.ResetUserPassword)
+		// 批量操作用户
+		adminUserRoutes.POST("/batch-action", userApi.BatchUserAction)
+		// 获取用户统计
+		adminUserRoutes.GET("/stats", userApi.GetUserStats)
+	}
 }
 
 // setupTagRoutes 设置标签相关路由
