@@ -15,6 +15,7 @@ import (
 	"github.com/nsxzhou1114/blog-api/internal/logger"
 	"github.com/nsxzhou1114/blog-api/internal/model"
 	"github.com/nsxzhou1114/blog-api/internal/router"
+	"github.com/nsxzhou1114/blog-api/pkg/cache"
 	"go.uber.org/zap"
 )
 
@@ -30,6 +31,12 @@ func Execute() {
 		panic(fmt.Sprintf("日志初始化失败: %v", err))
 	}
 	defer logger.Sync()
+
+	// 初始化缓存
+	if err := cache.InitializeCache(database.GetRedis(), database.GetDB()); err != nil {
+		panic(fmt.Sprintf("缓存初始化失败: %v", err))
+	}
+	defer cache.CleanupCache()
 
 	// 初始化MySQL数据库
 	db := database.GetDB()
