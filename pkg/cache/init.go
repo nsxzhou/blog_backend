@@ -50,7 +50,7 @@ func warmUpArticleBloomFilter(ctx context.Context, manager *Manager, db *gorm.DB
 	var articleIDs []uint
 	if err := db.Model(&struct {
 		ID uint `gorm:"column:id"`
-	}{}).Table("articles").Where("deleted_at IS NULL").Pluck("id", &articleIDs).Error; err != nil {
+	}{}).Table("articles").Pluck("id", &articleIDs).Error; err != nil {
 		return fmt.Errorf("get article ids failed: %w", err)
 	}
 	
