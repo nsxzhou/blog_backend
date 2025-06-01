@@ -68,7 +68,7 @@ type UserListRequest struct {
 	PageSize int    `form:"page_size" binding:"omitempty,min=1,max=100"`
 	Keyword  string `form:"keyword"`
 	Role     string `form:"role" binding:"omitempty,oneof=admin user"`
-	Status   int    `form:"status" binding:"omitempty,oneof=0 1"`
+	Status   int    `form:"status" binding:"omitempty,oneof=0 1 2"`
 	OrderBy  string `form:"order_by" binding:"omitempty,oneof=created_at last_login_at"`
 	Order    string `form:"order" binding:"omitempty,oneof=asc desc"`
 }

@@ -74,6 +74,7 @@ func (s *UserService) Register(req *dto.RegisterRequest) (*model.User, *auth.Tok
 		ResetPasswordExpires: time.Now(), // 设置密码重置过期时间的初始值为当前时间
 	}
 
+
 	if err := s.db.Create(user).Error; err != nil {
 		return nil, nil, err
 	}
@@ -493,7 +494,11 @@ func (s *UserService) GetUserList(req *dto.UserListRequest) (*dto.UserListRespon
 		query = query.Where("role = ?", req.Role)
 	}
 	if req.Status >= 0 {
-		query = query.Where("status = ?", req.Status)
+		if req.Status == 2 {
+			query = query.Where("status >= 0")
+		} else {
+			query = query.Where("status = ?", req.Status)
+		}
 	}
 
 	// 获取总数

@@ -21,7 +21,7 @@ type User struct {
 	VerificationToken    string    `gorm:"type:varchar(100)" json:"-"`
 	ResetPasswordToken   string    `gorm:"type:varchar(100)" json:"-"`
 	ResetPasswordExpires time.Time `json:"-"`
-	Phone                string    `gorm:"type:varchar(20);uniqueIndex" json:"phone"`
+	Phone                string    `gorm:"type:varchar(20);" json:"phone"`
 	IsPhoneVerified      int       `gorm:"type:tinyint(1);not null;default:0" json:"is_phone_verified"` // 0=未验证 1=已验证
 }
 
