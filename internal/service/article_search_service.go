@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -706,9 +705,9 @@ func (s *ArticleSearchService) convertToArticleListItem(article model.Article, h
 		}
 	}
 
-	var publishedAt time.Time
+	var publishedAtStr string
 	if article.PublishedAt != nil {
-		publishedAt = *article.PublishedAt
+		publishedAtStr = article.PublishedAt.Format("2006-01-02 15:04:05")
 	}
 
 	return dto.ArticleListItem{
@@ -730,9 +729,9 @@ func (s *ArticleSearchService) convertToArticleListItem(article model.Article, h
 		IsTop:         article.IsTop,
 		IsOriginal:    article.IsOriginal,
 		Tags:          tags,
-		CreatedAt:     article.CreatedAt,
-		UpdatedAt:     article.UpdatedAt,
-		PublishedAt:   publishedAt,
+		CreatedAt:     article.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:     article.UpdatedAt.Format("2006-01-02 15:04:05"),
+		PublishedAt:   publishedAtStr,
 	}
 }
 

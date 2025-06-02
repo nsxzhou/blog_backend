@@ -1,7 +1,5 @@
 package dto
 
-import "time"
-
 // ImageUploadRequest 图片上传请求
 type ImageUploadRequest struct {
 	UsageType   string `form:"usage_type" binding:"required,oneof=avatar cover content"` // 使用类型：头像/封面/内容
@@ -29,45 +27,45 @@ type ImageUpdateRequest struct {
 
 // ImageListItem 图片列表项
 type ImageListItem struct {
-	ID           uint      `json:"id"`                      // 图片ID
-	URL          string    `json:"url"`                     // 图片URL
-	Path         string    `json:"path"`                    // 存储路径
-	Filename     string    `json:"filename"`                // 文件名
-	Size         int       `json:"size"`                    // 文件大小（字节）
-	Width        *int      `json:"width"`                   // 图片宽度
-	Height       *int      `json:"height"`                  // 图片高度
-	MimeType     string    `json:"mime_type"`               // MIME类型
-	UserID       uint      `json:"user_id"`                 // 用户ID
-	UserName     string    `json:"user_name"`               // 用户名
-	UsageType    string    `json:"usage_type"`              // 使用类型
-	ArticleID    *uint     `json:"article_id"`              // 文章ID
-	ArticleTitle string    `json:"article_title,omitempty"` // 文章标题
-	IsExternal   int       `json:"is_external"`             // 是否外链: 0=否 1=是 2=全部
-	StorageType  string    `json:"storage_type"`            // 存储类型: local cos
-	CreatedAt    time.Time `json:"created_at"`              // 创建时间
-	UpdatedAt    time.Time `json:"updated_at"`              // 更新时间
+	ID           uint   `json:"id"`                      // 图片ID
+	URL          string `json:"url"`                     // 图片URL
+	Path         string `json:"path"`                    // 存储路径
+	Filename     string `json:"filename"`                // 文件名
+	Size         int    `json:"size"`                    // 文件大小（字节）
+	Width        *int   `json:"width"`                   // 图片宽度
+	Height       *int   `json:"height"`                  // 图片高度
+	MimeType     string `json:"mime_type"`               // MIME类型
+	UserID       uint   `json:"user_id"`                 // 用户ID
+	UserName     string `json:"user_name"`               // 用户名
+	UsageType    string `json:"usage_type"`              // 使用类型
+	ArticleID    *uint  `json:"article_id"`              // 文章ID
+	ArticleTitle string `json:"article_title,omitempty"` // 文章标题
+	IsExternal   int    `json:"is_external"`             // 是否外链: 0=否 1=是 2=全部
+	StorageType  string `json:"storage_type"`            // 存储类型: local cos
+	CreatedAt    string `json:"created_at"`              // 创建时间
+	UpdatedAt    string `json:"updated_at"`              // 更新时间
 }
 
 // ImageDetail 图片详情
 type ImageDetail struct {
-	ID           uint      `json:"id"`                      // 图片ID
-	URL          string    `json:"url"`                     // 图片URL
-	Path         string    `json:"path"`                    // 存储路径
-	Filename     string    `json:"filename"`                // 文件名
-	Size         int       `json:"size"`                    // 文件大小（字节）
-	Width        *int      `json:"width"`                   // 图片宽度
-	Height       *int      `json:"height"`                  // 图片高度
-	MimeType     string    `json:"mime_type"`               // MIME类型
-	UserID       uint      `json:"user_id"`                 // 用户ID
-	UserName     string    `json:"user_name"`               // 用户名
-	UserAvatar   string    `json:"user_avatar"`             // 用户头像
-	UsageType    string    `json:"usage_type"`              // 使用类型
-	ArticleID    *uint     `json:"article_id"`              // 文章ID
-	ArticleTitle string    `json:"article_title,omitempty"` // 文章标题
-	IsExternal   int       `json:"is_external"`             // 是否外链: 0=否 1=是 2=全部
-	StorageType  string    `json:"storage_type"`            // 存储类型: local cos
-	CreatedAt    time.Time `json:"created_at"`              // 创建时间
-	UpdatedAt    time.Time `json:"updated_at"`              // 更新时间
+	ID           uint   `json:"id"`                      // 图片ID
+	URL          string `json:"url"`                     // 图片URL
+	Path         string `json:"path"`                    // 存储路径
+	Filename     string `json:"filename"`                // 文件名
+	Size         int    `json:"size"`                    // 文件大小（字节）
+	Width        *int   `json:"width"`                   // 图片宽度
+	Height       *int   `json:"height"`                  // 图片高度
+	MimeType     string `json:"mime_type"`               // MIME类型
+	UserID       uint   `json:"user_id"`                 // 用户ID
+	UserName     string `json:"user_name"`               // 用户名
+	UserAvatar   string `json:"user_avatar"`             // 用户头像
+	UsageType    string `json:"usage_type"`              // 使用类型
+	ArticleID    *uint  `json:"article_id"`              // 文章ID
+	ArticleTitle string `json:"article_title,omitempty"` // 文章标题
+	IsExternal   int    `json:"is_external"`             // 是否外链: 0=否 1=是 2=全部
+	StorageType  string `json:"storage_type"`            // 存储类型: local cos
+	CreatedAt    string `json:"created_at"`              // 创建时间
+	UpdatedAt    string `json:"updated_at"`              // 更新时间
 }
 
 // ImageDetailResponse 图片详情响应

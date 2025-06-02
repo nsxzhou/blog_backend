@@ -186,8 +186,8 @@ func (s *ImageService) GetDetail(imageID uint) (*dto.ImageDetailResponse, error)
 		ArticleID:   image.ArticleID,
 		IsExternal:  image.IsExternal,
 		StorageType: image.StorageType,
-		CreatedAt:   image.CreatedAt,
-		UpdatedAt:   image.UpdatedAt,
+		CreatedAt:   image.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   image.UpdatedAt.Format("2006-01-02 15:04:05"),
 		},
 	}
 
@@ -271,8 +271,8 @@ func (s *ImageService) List(req *dto.ImageQueryRequest) (*dto.ImageListResponse,
 			ArticleID:   img.ArticleID,
 			IsExternal:  img.IsExternal,
 			StorageType: img.StorageType,
-			CreatedAt:   img.CreatedAt,
-			UpdatedAt:   img.UpdatedAt,
+			CreatedAt:   img.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   img.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 
 		// 填充用户信息

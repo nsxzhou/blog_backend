@@ -1,7 +1,5 @@
 package dto
 
-import "time"
-
 // ArticleCreateRequest 创建文章请求
 type ArticleCreateRequest struct {
 	Title      string `json:"title" binding:"required,max=255"`                             // 文章标题
@@ -74,9 +72,9 @@ type ArticleListItem struct {
 	IsTop         int       `json:"is_top"`                 // 是否置顶
 	IsOriginal    int       `json:"is_original"`            // 是否原创
 	Tags          []TagInfo `json:"tags"`                   // 标签列表
-	CreatedAt     time.Time `json:"created_at"`             // 创建时间
-	UpdatedAt     time.Time `json:"updated_at"`             // 更新时间
-	PublishedAt   time.Time `json:"published_at,omitempty"` // 发布时间
+	CreatedAt     string    `json:"created_at"`             // 创建时间
+	UpdatedAt     string    `json:"updated_at"`             // 更新时间
+	PublishedAt   string    `json:"published_at,omitempty"` // 发布时间
 }
 
 // ArticleDetailResponse 文章详情响应
@@ -103,9 +101,9 @@ type ArticleDetailResponse struct {
 	SourceURL     string    `json:"source_url"`             // 转载来源URL
 	SourceName    string    `json:"source_name"`            // 转载来源名称
 	Tags          []TagInfo `json:"tags"`                   // 标签列表
-	CreatedAt     time.Time `json:"created_at"`             // 创建时间
-	UpdatedAt     time.Time `json:"updated_at"`             // 更新时间
-	PublishedAt   time.Time `json:"published_at,omitempty"` // 发布时间
+	CreatedAt     string    `json:"created_at"`             // 创建时间
+	UpdatedAt     string    `json:"updated_at"`             // 更新时间
+	PublishedAt   string    `json:"published_at,omitempty"` // 发布时间
 	// 扩展字段
 	IsLiked         bool            `json:"is_liked"`         // 当前用户是否已点赞
 	IsFavorited     bool            `json:"is_favorited"`     // 当前用户是否已收藏
@@ -116,10 +114,10 @@ type ArticleDetailResponse struct {
 
 // SimpleArticle 简化版文章信息(用于上一篇/下一篇/相关文章等场景)
 type SimpleArticle struct {
-	ID          uint      `json:"id"`           // 文章ID
-	Title       string    `json:"title"`        // 文章标题
-	CoverImage  string    `json:"cover_image"`  // 封面图片
-	PublishedAt time.Time `json:"published_at"` // 发布时间
+	ID          uint   `json:"id"`           // 文章ID
+	Title       string `json:"title"`        // 文章标题
+	CoverImage  string `json:"cover_image"`  // 封面图片
+	PublishedAt string `json:"published_at"` // 发布时间
 }
 
 // ArticleListResponse 文章列表响应

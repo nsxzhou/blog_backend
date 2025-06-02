@@ -150,6 +150,6 @@ type UserStatResponse struct {
 	TotalUsers      int64 `json:"total_users"`
 	ActiveUsers     int64 `json:"active_users"`     // 30天内活跃用户
 	NewUsers        int64 `json:"new_users"`        // 本月新用户
-	VerifiedUsers   int64 `json:"verified_users"`   // 已验证用户
+	AdminUsers      int64 `json:"admin_users"`      // 管理员用户
 	DisabledUsers   int64 `json:"disabled_users"`   // 禁用用户
 }

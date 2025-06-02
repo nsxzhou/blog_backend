@@ -396,9 +396,9 @@ func (s *ArticleService) buildArticleDetailResponse(article *model.Article, cont
 	relatedArticles := s.getRelatedArticles(article.ID, article.CategoryID, article.Tags)
 
 	// 构建响应
-	var publishedAt time.Time
+	var publishedAtStr string
 	if article.PublishedAt != nil {
-		publishedAt = *article.PublishedAt
+		publishedAtStr = article.PublishedAt.Format("2006-01-02 15:04:05")
 	}
 
 	return &dto.ArticleDetailResponse{
@@ -424,9 +424,9 @@ func (s *ArticleService) buildArticleDetailResponse(article *model.Article, cont
 		SourceURL:       article.SourceURL,
 		SourceName:      article.SourceName,
 		Tags:            s.convertToTagInfos(article.Tags),
-		CreatedAt:       article.CreatedAt,
-		UpdatedAt:       article.UpdatedAt,
-		PublishedAt:     publishedAt,
+		CreatedAt:       article.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:       article.UpdatedAt.Format("2006-01-02 15:04:05"),
+		PublishedAt:     publishedAtStr,
 		IsLiked:         isLiked,
 		IsFavorited:     isFavorited,
 		PrevArticle:     prevArticle,
@@ -483,16 +483,16 @@ func (s *ArticleService) getRelatedArticles(articleID, categoryID uint, tags []m
 
 // convertToSimpleArticle 转换为简单文章
 func (s *ArticleService) convertToSimpleArticle(article *model.Article) *dto.SimpleArticle {
-	var publishedAt time.Time
+	var publishedAtStr string
 	if article.PublishedAt != nil {
-		publishedAt = *article.PublishedAt
+		publishedAtStr = article.PublishedAt.Format("2006-01-02 15:04:05")
 	}
 	
 	return &dto.SimpleArticle{
 		ID:          article.ID,
 		Title:       article.Title,
 		CoverImage:  article.CoverImage,
-		PublishedAt: publishedAt,
+		PublishedAt: publishedAtStr,
 	}
 }
 
@@ -512,9 +512,9 @@ func (s *ArticleService) convertToTagInfos(tags []model.Tag) []dto.TagInfo {
 func (s *ArticleService) convertToArticleListItems(articles []model.Article) []dto.ArticleListItem {
 	items := make([]dto.ArticleListItem, 0, len(articles))
 	for _, article := range articles {
-		var publishedAt time.Time
+		var publishedAtStr string
 		if article.PublishedAt != nil {
-			publishedAt = *article.PublishedAt
+			publishedAtStr = article.PublishedAt.Format("2006-01-02 15:04:05")
 		}
 
 		items = append(items, dto.ArticleListItem{
@@ -536,9 +536,9 @@ func (s *ArticleService) convertToArticleListItems(articles []model.Article) []d
 			IsTop:         article.IsTop,
 			IsOriginal:    article.IsOriginal,
 			Tags:          s.convertToTagInfos(article.Tags),
-			CreatedAt:     article.CreatedAt,
-			UpdatedAt:     article.UpdatedAt,
-			PublishedAt:   publishedAt,
+			CreatedAt:     article.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:     article.UpdatedAt.Format("2006-01-02 15:04:05"),
+			PublishedAt:   publishedAtStr,
 		})
 	}
 	return items

@@ -691,15 +691,15 @@ func (s *UserService) GetUserStats() (*dto.UserStatResponse, error) {
 	s.db.Model(&model.User{}).Count(&stats.TotalUsers)
 
 	// 活跃用户数（30天内登录）
-	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
+	thirtyDaysAgo := time.Now().AddDate(0, 0, -7	)
 	s.db.Model(&model.User{}).Where("last_login_at > ?", thirtyDaysAgo).Count(&stats.ActiveUsers)
 
 	// 本月新用户
 	currentMonth := time.Now().Format("2006-01")
 	s.db.Model(&model.User{}).Where("DATE_FORMAT(created_at, '%Y-%m') = ?", currentMonth).Count(&stats.NewUsers)
 
-	// 已验证用户
-	s.db.Model(&model.User{}).Where("is_verified = 1").Count(&stats.VerifiedUsers)
+	// 管理员用户	
+	s.db.Model(&model.User{}).Where("role = 'admin'").Count(&stats.AdminUsers)
 
 	// 禁用用户
 	s.db.Model(&model.User{}).Where("status = 0").Count(&stats.DisabledUsers)

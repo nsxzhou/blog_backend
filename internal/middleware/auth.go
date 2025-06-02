@@ -31,6 +31,8 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
+		logger.Infof("token: %s", parts[1])
+
 		// 验证token
 		claims, err := auth.ParseToken(parts[1])
 		if err != nil {
@@ -39,6 +41,8 @@ func JWTAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		logger.Infof("claims: %v", claims)
 
 		// 验证token类型
 		if claims.Type != auth.AccessToken {

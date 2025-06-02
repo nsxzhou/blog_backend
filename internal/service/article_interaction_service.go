@@ -471,9 +471,9 @@ func (s *ArticleInteractionService) convertToArticleListItems(articles []model.A
 			})
 		}
 
-		var publishedAt time.Time
+		var publishedAtStr string
 		if article.PublishedAt != nil {
-			publishedAt = *article.PublishedAt
+			publishedAtStr = article.PublishedAt.Format("2006-01-02 15:04:05")
 		}
 
 		items = append(items, dto.ArticleListItem{
@@ -495,9 +495,9 @@ func (s *ArticleInteractionService) convertToArticleListItems(articles []model.A
 			IsTop:         article.IsTop,
 			IsOriginal:    article.IsOriginal,
 			Tags:          tags,
-			CreatedAt:     article.CreatedAt,
-			UpdatedAt:     article.UpdatedAt,
-			PublishedAt:   publishedAt,
+			CreatedAt:     article.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:     article.UpdatedAt.Format("2006-01-02 15:04:05"),
+			PublishedAt:   publishedAtStr,
 		})
 	}
 	return items
