@@ -67,9 +67,6 @@ go run main.go user create-admin
 # 6. 启动HTTP服务
 go run main.go serve
 # 服务将在 http://localhost:8080 启动
-
-# 7. 测试API（新开终端）
-curl http://localhost:8080/api/health
 ```
 
 ### 常用命令

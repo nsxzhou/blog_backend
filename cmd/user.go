@@ -1,12 +1,13 @@
 package cmd
 
 import (
-	"bufio"
+	"bufio"	
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/nsxzhou1114/blog-api/internal/database"
 	"github.com/nsxzhou1114/blog-api/internal/model"
@@ -143,8 +144,13 @@ func createAdminUser() {
 		Nickname: nickname,
 		Role:     "admin",
 		Status:   1,
+		IsVerified: 1,
+		IsPhoneVerified: 1,
+		LastLoginAt: time.Now(),
+		LastLoginIP: "127.0.0.1",	
+		ResetPasswordExpires: time.Now(),
 	}
-	
+
 	db := database.GetDB()
 	if err := db.Create(user).Error; err != nil {
 		fmt.Printf("创建管理员用户失败: %v\n", err)
