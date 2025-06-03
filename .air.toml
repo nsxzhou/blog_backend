@@ -8,7 +8,7 @@ tmp_dir = "tmp"
 # 构建命令
 cmd = "go build -o ./tmp/main ."
 # 构建后运行的二进制文件路径
-bin = "./tmp/main"
+bin = "./tmp/main serve"
 # 监听以下类型的文件变动
 include_ext = ["go", "yaml", "toml", "ini"]
 # 忽略以下目录的变动

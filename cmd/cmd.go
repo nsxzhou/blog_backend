@@ -16,53 +16,96 @@ import (
 	"github.com/nsxzhou1114/blog-api/internal/model"
 	"github.com/nsxzhou1114/blog-api/internal/router"
 	"github.com/nsxzhou1114/blog-api/pkg/cache"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
-// Execute 执行主程序
+var configPath string
+
+// rootCmd 根命令
+var rootCmd = &cobra.Command{
+	Use:   "blog-api",
+	Short: "博客API服务",
+	Long:  `一个功能完整的博客API服务，支持用户管理、文章发布、评论等功能`,
+}
+
+// serveCmd 启动服务命令
+var serveCmd = &cobra.Command{
+	Use:   "serve",
+	Short: "启动HTTP服务",
+	Long:  `启动博客API的HTTP服务器`,
+	Run: func(cmd *cobra.Command, args []string) {
+		startServer()
+	},
+}
+
+func init() {
+	// 添加全局标志
+	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "./config", "配置文件路径")
+	
+	// 添加子命令
+	rootCmd.AddCommand(serveCmd)
+}
+
+// Execute 执行根命令
 func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+// initializeSystem 初始化系统
+func initializeSystem() error {
 	// 初始化配置
-	if err := config.Init("./config"); err != nil {
-		panic(fmt.Sprintf("配置初始化失败: %v", err))
+	if err := config.Init(configPath); err != nil {
+		return fmt.Errorf("配置初始化失败: %v", err)
 	}
 
 	// 初始化日志
 	if err := logger.Init(); err != nil {
-		panic(fmt.Sprintf("日志初始化失败: %v", err))
+		return fmt.Errorf("日志初始化失败: %v", err)
 	}
-	defer logger.Sync()
-
-	// 初始化缓存
-	if err := cache.InitializeCache(database.GetRedis(), database.GetDB()); err != nil {
-		panic(fmt.Sprintf("缓存初始化失败: %v", err))
-	}
-	defer cache.CleanupCache()
 
 	// 初始化MySQL数据库
 	db := database.GetDB()
 	if db == nil {
-		logger.Fatal("MySQL数据库连接失败")
-		return
+		return fmt.Errorf("MySQL数据库连接失败")
 	}
 
 	// 初始化数据库表
 	if err := model.InitTables(db); err != nil {
-		logger.Fatal("初始化数据库表失败", zap.Error(err))
-		return
+		return fmt.Errorf("初始化数据库表失败: %v", err)
 	}
 
 	// 初始化Elasticsearch
 	es := database.GetES()
 	if es == nil {
-		logger.Fatal("Elasticsearch连接失败")
-		return
+		return fmt.Errorf("Elasticsearch连接失败")
 	}
 
 	// 初始化Elasticsearch索引
 	if err := model.InitESIndices(es); err != nil {
-		logger.Fatal("初始化Elasticsearch索引失败", zap.Error(err))
-		return
+		return fmt.Errorf("初始化Elasticsearch索引失败: %v", err)
 	}
+
+	// 初始化缓存
+	if err := cache.InitializeCache(database.GetRedis(), database.GetDB()); err != nil {
+		return fmt.Errorf("缓存初始化失败: %v", err)
+	}
+
+	return nil
+}
+
+// startServer 启动HTTP服务
+func startServer() {
+	// 初始化系统
+	if err := initializeSystem(); err != nil {
+		fmt.Printf("系统初始化失败: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+	defer cache.CleanupCache()
 
 	// 设置Gin模式
 	gin.SetMode(config.GlobalConfig.App.Mode)

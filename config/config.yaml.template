@@ -1,0 +1,99 @@
+# 应用配置
+app:
+  name: blog-api
+  mode: debug # debug/release/test
+  port: 8080
+  cors:
+    allow_origins:
+      - "*"
+    allow_methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    allow_headers:
+      - Content-Type
+      - Authorization
+    allow_credentials: true
+    expose_headers:
+      - Content-Length
+      - Content-Type
+      - Access-Control-Allow-Origin
+
+# 数据库配置
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  username: root
+  password: ${MYSQL_PASSWORD:-root}  # 支持环境变量，默认值为root
+  database: blog_new
+  charset: utf8mb4
+  max_idle_conns: 10
+  max_open_conns: 100
+  log_level: info # silent/error/warn/info
+
+# Redis配置
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: ${REDIS_PASSWORD:-redis}  # 支持环境变量，默认值为redis
+  db: 1
+  pool_size: 100
+  min_idle_conns: 10
+
+# Elasticsearch配置
+elasticsearch:
+  urls:
+    - http://127.0.0.1:9200
+  username: ""
+  password: ""
+  sniff: false
+  healthcheck: true
+  infolog: logger
+
+# JWT配置
+jwt:
+  secret_key: ${JWT_SECRET_KEY:-your-secret-key-here}  # 生产环境请使用环境变量
+  access_expire_seconds: 7200 # 2小时
+  refresh_expire_seconds: 604800 # 7天
+  buffer_seconds: 300 # 5分钟
+  issuer: blog-api
+
+# 日志配置
+log:
+  level: debug # debug/info/warn/error/dpanic/panic/fatal
+  filename: ./logs/app.log
+  max_size: 100 # MB
+  max_backups: 10
+  max_age: 30 # 天
+  compress: true
+  stdout: true
+
+# 图片配置
+image:
+  # 默认存储类型
+  default_storage: local # local/cos
+  # 是否启用本地存储
+  local_enabled: true
+  # 是否启用腾讯云COS存储
+  cos_enabled: true
+  # 上传限制
+  upload:
+    max_file_size: 10485760 # 10MB
+    allowed_types:
+      - image/jpeg
+      - image/png
+      - image/gif
+      - image/webp
+    # 本地存储配置
+    local:
+      upload_path: "./uploads/images"
+      url_prefix: "/uploads/images"
+    # 腾讯云COS配置 
+    cos:
+      secret_id: 替换真实配置
+      secret_key: 替换真实配置
+      bucket_url: 替换真实配置
+      region: 替换真实配置
+      bucket: 替换真实配置

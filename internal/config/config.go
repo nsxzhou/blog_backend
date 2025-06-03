@@ -15,7 +15,6 @@ type Config struct {
 	Redis         RedisConfig         `mapstructure:"redis"`
 	Elasticsearch ElasticsearchConfig `mapstructure:"elasticsearch"`
 	Log           LogConfig           `mapstructure:"log"`
-	Storage       StorageConfig       `mapstructure:"storage"`
 	JWT           JWTConfig           `mapstructure:"jwt"`
 	Image         ImageConfig         `mapstructure:"image"`
 }
@@ -90,14 +89,6 @@ type LogConfig struct {
 	MaxBackups int    `mapstructure:"max_backups"`
 	Compress   bool   `mapstructure:"compress"`
 	Stdout     bool   `mapstructure:"stdout"`
-}
-
-// StorageConfig 存储配置
-type StorageConfig struct {
-	Type  string       `mapstructure:"type"`
-	Local LocalStorage `mapstructure:"local"`
-	COS   COSStorage   `mapstructure:"cos"`
-	Limit StorageLimit `mapstructure:"limit"`
 }
 
 // LocalStorage 本地存储配置

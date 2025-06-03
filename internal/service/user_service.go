@@ -177,6 +177,18 @@ func (s *UserService) GetUserByID(id uint) (*model.User, error) {
 	return &user, nil
 }
 
+// GetUserByUsername 根据用户名获取用户
+func (s *UserService) GetUserByUsername(username string) (*model.User, error) {
+	var user model.User
+	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("用户不存在")
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
 // UpdateUserInfo 更新用户信息
 func (s *UserService) UpdateUserInfo(id uint, req *dto.UserInfoUpdateRequest) (*model.User, error) {
 	var user model.User
