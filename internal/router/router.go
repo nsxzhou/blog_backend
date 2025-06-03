@@ -52,6 +52,8 @@ func setupUserRoutes(api *gin.RouterGroup) {
 		userRoutes.POST("/register", userApi.Register)
 		// 登录
 		userRoutes.POST("/login", userApi.Login)
+		// 登出
+		userRoutes.POST("/logout", userApi.Logout)
 		// 忘记密码
 		userRoutes.POST("/forgot-password", userApi.ForgotPassword)
 		// 重置密码
@@ -73,8 +75,6 @@ func setupUserRoutes(api *gin.RouterGroup) {
 	{
 		// 刷新令牌
 		refreshRoutes.POST("/refresh", userApi.RefreshToken)
-		// 登出
-		refreshRoutes.POST("/logout", userApi.Logout)
 	}
 
 	// 需要认证的路由
@@ -94,6 +94,7 @@ func setupUserRoutes(api *gin.RouterGroup) {
 		authUserRoutes.GET("/followers", userApi.GetFollowers)
 		// 获取当前用户关注列表
 		authUserRoutes.GET("/following", userApi.GetFollowing)
+		
 	}
 
 	// 需要管理员权限的路由
