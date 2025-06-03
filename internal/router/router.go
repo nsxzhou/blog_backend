@@ -122,7 +122,7 @@ func setupTagRoutes(api *gin.RouterGroup) {
 		// 获取标签列表
 		tagRoutes.GET("", tagApi.List)
 		// 获取标签云
-		// tagRoutes.GET("/cloud", tagApi.GetTagCloud)
+		tagRoutes.GET("/cloud", tagApi.GetTagCloud)
 		// 获取标签详情
 		tagRoutes.GET("/:id", tagApi.GetByID)
 	}
@@ -136,6 +136,8 @@ func setupTagRoutes(api *gin.RouterGroup) {
 		adminTagRoutes.PUT("/:id", tagApi.Update)
 		// 删除标签
 		adminTagRoutes.DELETE("/:id", tagApi.Delete)
+		// 同步标签文章计数
+		adminTagRoutes.POST("/sync-count", tagApi.SyncArticleCount)
 	}
 }
 

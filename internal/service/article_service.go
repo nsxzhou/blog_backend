@@ -33,17 +33,19 @@ type ArticleService struct {
 	log          *zap.SugaredLogger
 	articleCache *cache.ArticleCacheService
 	cacheManager *cache.Manager
+	tagService   *TagService
 }
 
 // NewArticleService 创建文章服务实例
 func NewArticleService() *ArticleService {
 	articleServiceOnce.Do(func() {
 		articleService = &ArticleService{
-		db:           database.GetDB(),
-		esClient:     database.GetES(),
-		log:          logger.GetSugaredLogger(),
-		cacheManager: cache.GetManager(),
-	}
+			db:           database.GetDB(),
+			esClient:     database.GetES(),
+			log:          logger.GetSugaredLogger(),
+			cacheManager: cache.GetManager(),
+			tagService:   NewTagService(),
+		}
 	
 		articleService.initializeCache()
 	})
@@ -142,8 +144,21 @@ func (s *ArticleService) Delete(userID uint, articleID uint, role string) error 
 	}
 
 	return s.executeDeleteTransaction(func(tx *gorm.DB) error {
+		// 获取文章的标签列表，用于更新计数
+		var tagIDs []uint
+		if err := tx.Model(&article).Association("Tags").Find(&tagIDs); err != nil {
+			s.log.Warnf("获取文章标签列表失败: %v", err)
+		}
+
 		if err := tx.Delete(&article).Error; err != nil {
 			return err
+		}
+
+		// 更新标签文章计数
+		if len(tagIDs) > 0 {
+			if err := s.tagService.UpdateMultipleTagArticleCount(tx, tagIDs); err != nil {
+				s.log.Warnf("更新标签文章计数失败: %v", err)
+			}
 		}
 
 		if article.ESDocID != "" {
@@ -315,7 +330,23 @@ func (s *ArticleService) buildUpdateData(req *dto.ArticleUpdateRequest) map[stri
 
 // handleTags 处理标签关联
 func (s *ArticleService) handleTags(tx *gorm.DB, article *model.Article, tagIDs []uint) error {
+	// 获取文章原有的标签IDs
+	var oldTagIDs []uint
+	if article.ID > 0 {
+		if err := tx.Model(article).Association("Tags").Find(&oldTagIDs); err != nil {
+			s.log.Warnf("获取文章原有标签失败: %v", err)
+		}
+	}
+
 	if len(tagIDs) == 0 {
+		// 如果新标签为空，清除所有关联
+		if err := tx.Model(article).Association("Tags").Clear(); err != nil {
+			return err
+		}
+		// 更新原有标签的计数
+		if len(oldTagIDs) > 0 {
+			s.tagService.UpdateMultipleTagArticleCount(tx, oldTagIDs)
+		}
 		return nil
 	}
 
@@ -324,7 +355,32 @@ func (s *ArticleService) handleTags(tx *gorm.DB, article *model.Article, tagIDs 
 		return err
 	}
 
-	return tx.Model(article).Association("Tags").Replace(tags)
+	if err := tx.Model(article).Association("Tags").Replace(tags); err != nil {
+		return err
+	}
+
+	// 合并需要更新的标签ID（包括新的和旧的）
+	allTagIDs := make(map[uint]bool)
+	for _, id := range tagIDs {
+		allTagIDs[id] = true
+	}
+	for _, id := range oldTagIDs {
+		allTagIDs[id] = true
+	}
+
+	// 批量更新标签计数
+	var updateTagIDs []uint
+	for id := range allTagIDs {
+		updateTagIDs = append(updateTagIDs, id)
+	}
+
+	if len(updateTagIDs) > 0 {
+		if err := s.tagService.UpdateMultipleTagArticleCount(tx, updateTagIDs); err != nil {
+			s.log.Warnf("更新标签文章计数失败: %v", err)
+		}
+	}
+
+	return nil
 }
 
 // preloadArticleData 预加载文章关联数据
