@@ -333,8 +333,14 @@ func (s *ArticleService) handleTags(tx *gorm.DB, article *model.Article, tagIDs 
 	// 获取文章原有的标签IDs
 	var oldTagIDs []uint
 	if article.ID > 0 {
-		if err := tx.Model(article).Association("Tags").Find(&oldTagIDs); err != nil {
+		var oldTags []model.Tag
+		if err := tx.Model(article).Association("Tags").Find(&oldTags); err != nil {
 			s.log.Warnf("获取文章原有标签失败: %v", err)
+		} else {
+			// 提取标签ID
+			for _, tag := range oldTags {
+				oldTagIDs = append(oldTagIDs, tag.ID)
+			}
 		}
 	}
 
