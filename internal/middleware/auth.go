@@ -31,8 +31,6 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		logger.Infof("token: %s", parts[1])
-
 		// 验证token
 		claims, err := auth.ParseToken(parts[1])
 		if err != nil {
@@ -41,8 +39,6 @@ func JWTAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
-		logger.Infof("claims: %v", claims)
 
 		// 验证token类型
 		if claims.Type != auth.AccessToken {
@@ -58,7 +54,6 @@ func JWTAuth() gin.HandlerFunc {
 		if time.Until(time.Unix(claims.ExpiresAt, 0)) < bufferTime {
 			c.Header("X-Token-Expire-Soon", "true")
 		}
-
 		// 将用户ID存入上下文
 		c.Set("userID", claims.UserID)
 		c.Set("userRole", claims.Role)
@@ -180,4 +175,57 @@ func GetTokenVersion(c *gin.Context) (int, bool) {
 		return 0, false
 	}
 	return version.(int), true
+}
+
+// OptionalAuth 可选的JWT认证中间件
+// 不会阻止未认证的用户访问，但如果提供了有效的token会设置用户信息到上下文
+func OptionalAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 从请求头获取token
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			// 没有提供token，继续执行，但不设置用户信息
+			c.Next()
+			return
+		}
+
+		// 检查格式
+		parts := strings.SplitN(authHeader, " ", 2)
+		if !(len(parts) == 2 && parts[0] == "Bearer") {
+			// token格式错误，继续执行，但不设置用户信息
+			logger.Warnf("Authorization格式错误: %s", authHeader)
+			c.Next()
+			return
+		}
+
+		// 验证token
+		claims, err := auth.ParseToken(parts[1])
+		if err != nil {
+			// token无效，继续执行，但不设置用户信息
+			logger.Warnf("无效的令牌: %v", err)
+			c.Next()
+			return
+		}
+
+		// 验证token类型
+		if claims.Type != auth.AccessToken {
+			// token类型错误，继续执行，但不设置用户信息
+			logger.Warnf("使用了错误类型的令牌: %v", claims.Type)
+			c.Next()
+			return
+		}
+
+		// 检查令牌是否临近过期（可选）
+		bufferTime := time.Duration(config.GlobalConfig.JWT.BufferSeconds) * time.Second
+		if time.Until(time.Unix(claims.ExpiresAt, 0)) < bufferTime {
+			c.Header("X-Token-Expire-Soon", "true")
+		}
+
+		// 将用户ID存入上下文
+		c.Set("userID", claims.UserID)
+		c.Set("userRole", claims.Role)
+		c.Set("tokenID", claims.TokenID)
+		
+		c.Next()
+	}
 }

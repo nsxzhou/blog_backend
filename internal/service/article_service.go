@@ -182,7 +182,6 @@ func (s *ArticleService) GetByID(articleID uint) (*model.Article, error) {
 // GetArticleDetail 获取文章详情
 func (s *ArticleService) GetArticleDetail(articleID uint, currentUserID uint) (*dto.ArticleDetailResponse, error) {
 	ctx := context.Background()
-	
 	// 尝试从缓存获取
 	if cachedResponse := s.tryGetCachedDetail(ctx, articleID, currentUserID); cachedResponse != nil {
 		return cachedResponse, nil
@@ -433,7 +432,6 @@ func (s *ArticleService) tryGetCachedDetail(ctx context.Context, articleID uint,
 		s.log.Infof("文章详情缓存命中: articleID=%d", articleID)
 		
 		go s.incrementViewCount(articleID)
-		
 		if currentUserID > 0 {
 			cachedResponse.IsLiked = s.checkUserLiked(currentUserID, articleID)
 			cachedResponse.IsFavorited = s.checkUserFavorited(currentUserID, articleID)
@@ -450,13 +448,13 @@ func (s *ArticleService) tryGetCachedDetail(ctx context.Context, articleID uint,
 // buildArticleDetailResponse 构建文章详情响应
 func (s *ArticleService) buildArticleDetailResponse(article *model.Article, content string, currentUserID uint) *dto.ArticleDetailResponse {
 	// 查询用户交互信息
+	s.log.Infof("currentUserID: %v, articleID: %v", currentUserID, article.ID)
 	isLiked := currentUserID > 0 && s.checkUserLiked(currentUserID, article.ID)
 	isFavorited := currentUserID > 0 && s.checkUserFavorited(currentUserID, article.ID)
-
+	s.log.Infof("isLiked: %v, isFavorited: %v", isLiked, isFavorited)
 	// 获取相关文章
 	prevArticle, nextArticle := s.getAdjacentArticles(article.ID)
 	relatedArticles := s.getRelatedArticles(article.ID, article.CategoryID, article.Tags)
-
 	// 构建响应
 	var publishedAtStr string
 	if article.PublishedAt != nil {

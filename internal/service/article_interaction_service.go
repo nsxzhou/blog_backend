@@ -260,8 +260,13 @@ func (s *ArticleInteractionService) ProcessArticleAction(userID, articleID uint,
 	switch action {
 	case "like":
 		return s.LikeArticle(userID, articleID)
+	case "unlike":
+		return s.LikeArticle(userID, articleID)
 	case "favorite":
 		return s.FavoriteArticle(userID, articleID)
+	case "unfavorite":
+		return s.FavoriteArticle(userID, articleID)
+
 	default:
 		return errors.New("不支持的操作类型")
 	}

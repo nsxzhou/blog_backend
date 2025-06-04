@@ -176,8 +176,8 @@ func setupArticleRoutes(api *gin.RouterGroup) {
 	// 公开路由
 	articleRoutes := api.Group("/articles")
 	{
-		// 获取文章详情
-		articleRoutes.GET("/:id", articleApi.GetDetail)
+		// 获取文章详情（使用可选认证中间件）
+		articleRoutes.GET("/:id", middleware.OptionalAuth(), articleApi.GetDetail)
 		// 统一文章列表接口
 		articleRoutes.GET("", articleApi.GetArticleList)
 		// 根据标签获取文章

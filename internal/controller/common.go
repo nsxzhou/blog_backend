@@ -13,5 +13,5 @@ func getUserIDFromContext(c *gin.Context) (uint, error) {
 	if !exists {
 		return 0, errors.New("用户未登录")
 	}
-	return userID, nil
+	return userID, nil	
 }

@@ -138,7 +138,6 @@ func (api *ArticleApi) GetDetail(c *gin.Context) {
 	if err == nil {
 		currentUserID = userID
 	}
-
 	articleIDStr := c.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
