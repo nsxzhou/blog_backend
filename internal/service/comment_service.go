@@ -377,7 +377,7 @@ func (s *CommentService) List(req *dto.CommentListRequest, currentUserID *uint) 
 	}
 
 	for _, comment := range comments {
-		commentResp, err := s.GenerateCommentResponse(&comment, currentUserID)
+		commentResp, err := s.GenerateCommentResponseWithStatus(&comment, currentUserID, req.Status)
 		if err != nil {
 			s.logger.Warnf("生成评论响应失败: %v", err)
 			continue
@@ -426,6 +426,11 @@ func (s *CommentService) BatchUpdateStatus(req *dto.CommentBatchStatusUpdateRequ
 
 // GenerateCommentResponse 生成评论响应DTO
 func (s *CommentService) GenerateCommentResponse(comment *model.Comment, currentUserID *uint) (*dto.CommentResponse, error) {
+	return s.GenerateCommentResponseWithStatus(comment, currentUserID, "")
+}
+
+// GenerateCommentResponseWithStatus 生成评论响应DTO（带状态筛选）
+func (s *CommentService) GenerateCommentResponseWithStatus(comment *model.Comment, currentUserID *uint, statusFilter string) (*dto.CommentResponse, error) {
 	// 填充基本信息
 	resp := &dto.CommentResponse{
 		ID:           comment.ID,
@@ -469,7 +474,14 @@ func (s *CommentService) GenerateCommentResponse(comment *model.Comment, current
 	// 获取父评论信息（如果有）
 	if comment.ParentID != nil && *comment.ParentID > 0 {
 		var parent model.Comment
-		if err := s.db.Preload("User").First(&parent, *comment.ParentID).Error; err == nil {
+		parentQuery := s.db.Preload("User")
+		
+		// 如果有状态筛选，也应用到父评论查询
+		if statusFilter != "" {
+			parentQuery = parentQuery.Where("status = ?", statusFilter)
+		}
+		
+		if err := parentQuery.First(&parent, *comment.ParentID).Error; err == nil {
 			resp.Parent = &dto.CommentBriefInfo{
 				ID:           parent.ID,
 				Content:      parent.Content,
@@ -493,8 +505,14 @@ func (s *CommentService) GenerateCommentResponse(comment *model.Comment, current
 
 	// 获取子评论（回复）信息
 	var children []model.Comment
-	if err := s.db.Where("parent_id = ?", comment.ID).
-		Preload("User").
+	childQuery := s.db.Where("parent_id = ?", comment.ID)
+	
+	// 如果有状态筛选，应用到子评论查询
+	if statusFilter != "" {
+		childQuery = childQuery.Where("status = ?", statusFilter)
+	}
+	
+	if err := childQuery.Preload("User").
 		Order("created_at ASC").
 		Limit(5). // 只取前5条回复
 		Find(&children).Error; err == nil {
