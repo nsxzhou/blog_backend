@@ -35,6 +35,21 @@ build-with-version:
 	@echo "提交: $(GIT_COMMIT)"
 	@echo "构建时间: $(BUILD_TIME)"
 
+# 为 Linux 构建项目
+build-linux:
+	@echo "为 Linux 构建项目..."
+	@GOOS=linux GOARCH=amd64 go build -o bin/$(APP_NAME) main.go
+	@echo "构建完成: bin/$(APP_NAME)"
+
+# 为 Linux 构建项目（带版本信息）
+build-linux-with-version:
+	@echo "为 Linux 构建项目（带版本信息）..."
+	@GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/$(APP_NAME) main.go
+	@echo "构建完成: bin/$(APP_NAME)"
+	@echo "版本: $(VERSION)"
+	@echo "提交: $(GIT_COMMIT)"
+	@echo "构建时间: $(BUILD_TIME)"
+
 # 安装到系统路径
 install: build-with-version
 	@echo "安装到系统路径..."

@@ -35,3 +35,5 @@ Thumbs.db
 
 # 配置文件
 config/config.yaml
+
+deploy/
