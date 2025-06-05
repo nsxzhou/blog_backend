@@ -9,7 +9,7 @@ type User struct {
 	Base
 	Username             string    `gorm:"type:varchar(50);not null;uniqueIndex" json:"username"`
 	Password             string    `gorm:"type:varchar(100);not null" json:"-"`
-	Email                string    `gorm:"type:varchar(100);not null;uniqueIndex" json:"email"`
+	Email                string    `gorm:"type:varchar(100);uniqueIndex" json:"email"`
 	Avatar               string    `gorm:"type:varchar(255)" json:"avatar"`
 	Nickname             string    `gorm:"type:varchar(50)" json:"nickname"`
 	Bio                  string    `gorm:"type:text" json:"bio"`

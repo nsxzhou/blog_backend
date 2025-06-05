@@ -924,16 +924,9 @@ func (s *UserService) getQQUserInfo(accessToken, openID string) (*QQUserInfo, er
 
 // createUserFromQQ 从QQ信息创建用户
 func (s *UserService) createUserFromQQ(openID string, qqUserInfo *QQUserInfo, clientIP string) (model.User, error) {
-	// 生成随机用户名（避免重复）
-	username := s.generateUniqueUsername("qq_user")
-	
-	// 生成随机邮箱（用于占位）
-	email := fmt.Sprintf("%s@temp.qq.com", s.generateRandomString(10))
-
 	user := model.User{
-		Username:             username,
+		Username:             qqUserInfo.Nickname,
 		Password:             s.generateRandomString(32), // 随机密码，QQ用户无法使用密码登录
-		Email:                email,
 		Nickname:             qqUserInfo.Nickname,
 		Avatar:               qqUserInfo.Figureurl1,
 		Role:                 "user",
@@ -949,19 +942,6 @@ func (s *UserService) createUserFromQQ(openID string, qqUserInfo *QQUserInfo, cl
 	}
 
 	return user, nil
-}
-
-// generateUniqueUsername 生成唯一用户名
-func (s *UserService) generateUniqueUsername(prefix string) string {
-	for i := 0; i < 10; i++ {
-		username := fmt.Sprintf("%s_%s", prefix, s.generateRandomString(8))
-		var count int64
-		if err := s.db.Model(&model.User{}).Where("username = ?", username).Count(&count).Error; err == nil && count == 0 {
-			return username
-		}
-	}
-	// 如果前面都失败了，使用时间戳
-	return fmt.Sprintf("%s_%d", prefix, time.Now().Unix())
 }
 
 // generateRandomString 生成随机字符串
