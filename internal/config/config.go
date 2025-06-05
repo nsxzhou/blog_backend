@@ -17,6 +17,7 @@ type Config struct {
 	Log           LogConfig           `mapstructure:"log"`
 	JWT           JWTConfig           `mapstructure:"jwt"`
 	Image         ImageConfig         `mapstructure:"image"`
+	QQ            QQConfig            `mapstructure:"qq"`
 }
 
 // AppConfig 应用配置
@@ -151,6 +152,13 @@ type CorsConfig struct {
 	AllowHeaders     []string `mapstructure:"allow_headers"`
 	ExposedHeaders   []string `mapstructure:"expose_headers"`
 	AllowCredentials bool     `mapstructure:"allow_credentials"`
+}
+
+// QQConfig QQ配置
+type QQConfig struct {
+	AppID     string `mapstructure:"app_id"`
+	AppKey    string `mapstructure:"app_key"`
+	RedirectURL string `mapstructure:"redirect_url"`
 }
 
 var (

@@ -23,6 +23,7 @@ type User struct {
 	ResetPasswordExpires time.Time `json:"-"`
 	Phone                string    `gorm:"type:varchar(20);" json:"phone"`
 	IsPhoneVerified      int       `gorm:"type:tinyint(1);not null;default:0" json:"is_phone_verified"` // 0=未验证 1=已验证
+	QQOpenID             string    `gorm:"type:varchar(100);index" json:"-"`                             // QQ登录OpenID
 }
 
 // TableName 指定表名

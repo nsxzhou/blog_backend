@@ -62,6 +62,16 @@ type ResendVerificationRequest struct {
 	Email string `json:"email" binding:"required,email"`
 }
 
+// QQLoginURLResponse QQ登录URL响应
+type QQLoginURLResponse struct {
+	URL string `json:"url"`
+}
+
+// QQLoginCallbackRequest QQ登录回调请求
+type QQLoginCallbackRequest struct {
+	Code string `form:"code" binding:"required"`
+}
+
 // UserListRequest 用户列表请求
 type UserListRequest struct {
 	Page     int    `form:"page" binding:"omitempty,min=1"`

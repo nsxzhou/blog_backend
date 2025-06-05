@@ -1,12 +1,18 @@
 package service
 
 import (
+	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/nsxzhou1114/blog-api/internal/config"
 	"github.com/nsxzhou1114/blog-api/internal/database"
 	"github.com/nsxzhou1114/blog-api/internal/dto"
 	"github.com/nsxzhou1114/blog-api/internal/logger"
@@ -750,3 +756,257 @@ func (s *UserService) generateVerificationToken() string {
 	// 这里应该生成安全的随机令牌，简化处理
 	return fmt.Sprintf("verify_%d_%d", time.Now().Unix(), time.Now().Nanosecond())
 }
+
+// GetQQLoginURL 获取QQ登录URL
+func (s *UserService) GetQQLoginURL() string {
+	baseURL := "https://graph.qq.com/oauth2.0/authorize"
+	params := url.Values{}
+	params.Add("response_type", "code")
+	params.Add("client_id", config.GlobalConfig.QQ.AppID)
+	params.Add("redirect_uri", config.GlobalConfig.QQ.RedirectURL)
+	params.Add("scope", "get_user_info")
+
+	return fmt.Sprintf("%s?%s", baseURL, params.Encode())
+}
+
+// QQLoginCallback 处理QQ登录回调
+func (s *UserService) QQLoginCallback(code string, clientIP string) (*model.User, *auth.TokenPair, error) {
+	// 1. 获取access_token
+	accessToken, err := s.getQQAccessToken(code)
+	if err != nil {
+		s.logger.Errorf("获取QQ access_token失败: %v", err)
+		return nil, nil, fmt.Errorf("QQ登录失败: %v", err)
+	}
+
+	// 2. 获取OpenID
+	openID, err := s.getQQOpenID(accessToken)
+	if err != nil {
+		s.logger.Errorf("获取QQ OpenID失败: %v", err)
+		return nil, nil, fmt.Errorf("QQ登录失败: %v", err)
+	}
+
+	// 3. 获取用户信息
+	qqUserInfo, err := s.getQQUserInfo(accessToken, openID)
+	if err != nil {
+		s.logger.Errorf("获取QQ用户信息失败: %v", err)
+		return nil, nil, fmt.Errorf("QQ登录失败: %v", err)
+	}
+
+	// 4. 查找或创建用户
+	var user model.User
+	err = s.db.Where("qq_open_id = ?", openID).First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 创建新用户
+			user, err = s.createUserFromQQ(openID, qqUserInfo, clientIP)
+			if err != nil {
+				s.logger.Errorf("创建QQ用户失败: %v", err)
+				return nil, nil, fmt.Errorf("创建用户失败: %v", err)
+			}
+		} else {
+			return nil, nil, err
+		}
+	}
+
+	// 5. 更新最后登录信息
+	if err := s.db.Model(&user).Updates(map[string]interface{}{
+		"last_login_at": time.Now(),
+		"last_login_ip": clientIP,
+	}).Error; err != nil {
+		s.logger.Warnf("更新用户登录信息失败: %v", err)
+	}
+
+	// 6. 生成Token对
+	tokenPair, err := auth.GenerateTokenPair(user.ID, user.Role, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &user, tokenPair, nil
+}
+
+// getQQAccessToken 获取QQ access_token
+func (s *UserService) getQQAccessToken(code string) (string, error) {
+	tokenURL := fmt.Sprintf("https://graph.qq.com/oauth2.0/token?grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
+		config.GlobalConfig.QQ.AppID,
+		config.GlobalConfig.QQ.AppKey,
+		code,
+		config.GlobalConfig.QQ.RedirectURL,
+	)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(tokenURL)
+	if err != nil {
+		return "", fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取响应失败: %v", err)
+	}
+
+	// 解析响应 access_token=YOUR_TOKEN&expires_in=7776000&refresh_token=YOUR_REFRESH_TOKEN
+	params := s.parseQueryString(string(body))
+	accessToken := params["access_token"]
+	if accessToken == "" {
+		return "", fmt.Errorf("access_token为空，响应: %s", string(body))
+	}
+
+	return accessToken, nil
+}
+
+// getQQOpenID 获取QQ OpenID
+func (s *UserService) getQQOpenID(accessToken string) (string, error) {
+	openIDURL := fmt.Sprintf("https://graph.qq.com/oauth2.0/me?access_token=%s", accessToken)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(openIDURL)
+	if err != nil {
+		return "", fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取响应失败: %v", err)
+	}
+
+	// 解析响应 callback( {"client_id":"YOUR_APPID","openid":"YOUR_OPENID"} );
+	openID := s.extractOpenID(string(body))
+	if openID == "" {
+		return "", fmt.Errorf("解析OpenID失败，响应: %s", string(body))
+	}
+
+	return openID, nil
+}
+
+// QQUserInfo QQ用户信息结构体
+type QQUserInfo struct {
+	Nickname   string `json:"nickname"`
+	Figureurl1 string `json:"figureurl_1"`
+	Gender     string `json:"gender"`
+}
+
+// getQQUserInfo 获取QQ用户信息
+func (s *UserService) getQQUserInfo(accessToken, openID string) (*QQUserInfo, error) {
+	userInfoURL := fmt.Sprintf("https://graph.qq.com/user/get_user_info?access_token=%s&oauth_consumer_key=%s&openid=%s",
+		accessToken,
+		config.GlobalConfig.QQ.AppID,
+		openID,
+	)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(userInfoURL)
+	if err != nil {
+		return nil, fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %v", err)
+	}
+
+	s.logger.Debugf("QQ用户信息响应: %s", string(body))
+
+	var userInfo QQUserInfo
+	if err := json.Unmarshal(body, &userInfo); err != nil {
+		return nil, fmt.Errorf("解析用户信息失败: %v, 原始数据: %s", err, string(body))
+	}
+
+	if userInfo.Nickname == "" {
+		return nil, fmt.Errorf("获取用户信息失败，昵称为空: %s", string(body))
+	}
+
+	return &userInfo, nil
+}
+
+// createUserFromQQ 从QQ信息创建用户
+func (s *UserService) createUserFromQQ(openID string, qqUserInfo *QQUserInfo, clientIP string) (model.User, error) {
+	// 生成随机用户名（避免重复）
+	username := s.generateUniqueUsername("qq_user")
+	
+	// 生成随机邮箱（用于占位）
+	email := fmt.Sprintf("%s@temp.qq.com", s.generateRandomString(10))
+
+	user := model.User{
+		Username:             username,
+		Password:             s.generateRandomString(32), // 随机密码，QQ用户无法使用密码登录
+		Email:                email,
+		Nickname:             qqUserInfo.Nickname,
+		Avatar:               qqUserInfo.Figureurl1,
+		Role:                 "user",
+		Status:               1,
+		QQOpenID:             openID,
+		LastLoginAt:          time.Now(),
+		LastLoginIP:          clientIP,
+		ResetPasswordExpires: time.Now(),
+	}
+
+	if err := s.db.Create(&user).Error; err != nil {
+		return user, err
+	}
+
+	return user, nil
+}
+
+// generateUniqueUsername 生成唯一用户名
+func (s *UserService) generateUniqueUsername(prefix string) string {
+	for i := 0; i < 10; i++ {
+		username := fmt.Sprintf("%s_%s", prefix, s.generateRandomString(8))
+		var count int64
+		if err := s.db.Model(&model.User{}).Where("username = ?", username).Count(&count).Error; err == nil && count == 0 {
+			return username
+		}
+	}
+	// 如果前面都失败了，使用时间戳
+	return fmt.Sprintf("%s_%d", prefix, time.Now().Unix())
+}
+
+// generateRandomString 生成随机字符串
+func (s *UserService) generateRandomString(length int) string {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, length)
+	rand.Read(b)
+	for i := range b {
+		b[i] = chars[b[i]%byte(len(chars))]
+	}
+	return string(b)
+}
+
+// parseQueryString 解析查询字符串
+func (s *UserService) parseQueryString(query string) map[string]string {
+	params := make(map[string]string)
+	pairs := strings.Split(query, "&")
+	for _, pair := range pairs {
+		kv := strings.Split(pair, "=")
+		if len(kv) == 2 {
+			params[kv[0]] = kv[1]
+		}
+	}
+	return params
+}
+
+// extractOpenID 从回调响应中提取OpenID
+func (s *UserService) extractOpenID(response string) string {
+	// QQ返回格式: callback( {"client_id":"YOUR_APPID","openid":"YOUR_OPENID"} );
+	start := strings.Index(response, "{")
+	end := strings.LastIndex(response, "}")
+	if start == -1 || end == -1 {
+		return ""
+	}
+
+	jsonStr := response[start : end+1]
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+		return ""
+	}
+
+	if openID, ok := result["openid"].(string); ok {
+		return openID
+	}
+
+	return ""
+}
+

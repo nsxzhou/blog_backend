@@ -97,3 +97,9 @@ image:
       bucket_url: 替换真实配置
       region: 替换真实配置
       bucket: 替换真实配置
+
+# QQ配置
+qq:
+  app_id: 替换真实配置
+  app_key: 替换真实配置
+  redirect_url: 替换真实配置

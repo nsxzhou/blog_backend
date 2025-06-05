@@ -525,3 +525,37 @@ func (api *UserApi) GetUserStats(c *gin.Context) {
 
 	response.Success(c, "获取成功", stats)
 }
+
+// GetQQLoginURL 获取QQ登录URL
+func (api *UserApi) GetQQLoginURL(c *gin.Context) {
+	loginURL := api.userService.GetQQLoginURL()
+	
+	response.Success(c, "获取成功", dto.QQLoginURLResponse{
+		URL: loginURL,
+	})
+}
+
+// QQLoginCallback QQ登录回调
+func (api *UserApi) QQLoginCallback(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		response.Error(c, http.StatusBadRequest, "授权码不能为空", nil)
+		return
+	}
+
+	user, tokenPair, err := api.userService.QQLoginCallback(code, c.ClientIP())
+	if err != nil {
+		api.logger.Warnf("QQ登录失败: %v", err)
+		response.Error(c, http.StatusInternalServerError, "QQ登录失败", err)
+		return
+	}
+
+	api.logger.Infof("用户QQ登录成功: %s", user.Username)
+	
+	response.Success(c, "QQ登录成功", gin.H{
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"expires_in":    tokenPair.ExpiresIn,
+		"user":          api.userService.GenerateUserResponse(user),
+	})
+}

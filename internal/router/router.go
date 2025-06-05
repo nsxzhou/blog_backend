@@ -68,6 +68,9 @@ func setupUserRoutes(api *gin.RouterGroup) {
 		//userRoutes.GET("/:id/followers", userApi.GetUserFollowers)
 		// 获取指定用户关注列表（公开接口）
 		//userRoutes.GET("/:id/following", userApi.GetUserFollowing)
+		// QQ登录相关接口
+		userRoutes.GET("/qq/login-url", userApi.GetQQLoginURL)
+		userRoutes.GET("/qq/callback", userApi.QQLoginCallback)
 	}
 
 	// 需要刷新令牌的路由
