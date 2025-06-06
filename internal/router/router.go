@@ -183,6 +183,8 @@ func setupArticleRoutes(api *gin.RouterGroup) {
 		articleRoutes.GET("/:id", middleware.OptionalAuth(), articleApi.GetDetail)
 		// 统一文章列表接口
 		articleRoutes.GET("", articleApi.GetArticleList)
+		// 全文搜索接口
+		articleRoutes.GET("/search", articleApi.FullTextSearch)
 		// 根据标签获取文章
 		articleRoutes.GET("/tag/:id", articleApi.GetArticlesByTag)
 		// 根据分类获取文章
@@ -280,8 +282,10 @@ func setupImageRoutes(api *gin.RouterGroup) {
 		imageRoutes.GET("", imageApi.List)
 		// 获取存储配置
 		imageRoutes.GET("/config", imageApi.GetStorageConfig)
-		// 根据使用类型获取图片
+		// 根据使用类型获取图片（路径参数，支持逗号分隔多个类型）
 		imageRoutes.GET("/type/:type", imageApi.GetImagesByUsageType)
+		// 根据多个使用类型获取图片（查询参数）
+		//imageRoutes.GET("/types", imageApi.GetImagesByUsageTypes)
 		// 根据文章ID获取图片
 		imageRoutes.GET("/article/:article_id", imageApi.GetImagesByArticle)
 		// 获取图片统计数据

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -846,4 +847,224 @@ func (s *ArticleSearchService) SyncArticlesToES() error {
 	)
 
 	return err
+}
+
+// FullTextSearch 全文搜索，返回内容片段
+func (s *ArticleSearchService) FullTextSearch(req *dto.FullTextSearchRequest) (*dto.FullTextSearchResponse, error) {
+	ctx := context.Background()
+
+	// 尝试从缓存获取搜索结果
+	if s.articleCache != nil {
+		var cachedResponse dto.FullTextSearchResponse
+		err := s.articleCache.GetFullTextSearchResults(ctx, req.Keyword, req.Page, req.PageSize, &cachedResponse)
+		if err == nil {
+			s.log.Infof("全文搜索结果缓存命中: keyword=%s, page=%d, pageSize=%d", req.Keyword, req.Page, req.PageSize)
+			return &cachedResponse, nil
+		}
+	}
+
+	query := s.buildFullTextSearchQuery(req)
+	response, err := s.executeFullTextSearch(query)
+	if err != nil {
+		return nil, err
+	}
+
+	// 异步设置搜索结果缓存
+	if s.articleCache != nil {
+		go func() {
+			if err := s.articleCache.SetFullTextSearchResults(context.Background(), req.Keyword, req.Page, req.PageSize, response); err != nil {
+				s.log.Warnf("设置全文搜索结果缓存失败: %v", err)
+			} else {
+				s.log.Infof("全文搜索结果缓存设置成功: keyword=%s, page=%d, pageSize=%d", req.Keyword, req.Page, req.PageSize)
+			}
+		}()
+	}
+
+	return response, nil
+}
+
+// buildFullTextSearchQuery 构建全文搜索查询
+func (s *ArticleSearchService) buildFullTextSearchQuery(req *dto.FullTextSearchRequest) map[string]interface{} {
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{
+						"multi_match": map[string]interface{}{
+							"query":  req.Keyword,
+							"fields": []string{"title^3", "content^2", "summary^1.5"},
+							"type":   "best_fields",
+						},
+					},
+				},
+				"filter": []map[string]interface{}{
+					{
+						"term": map[string]interface{}{"status": "published"},
+					},
+					{
+						"term": map[string]interface{}{"access_type": "public"},
+					},
+				},
+			},
+		},
+		"highlight": map[string]interface{}{
+			"fields": map[string]interface{}{
+				"title": map[string]interface{}{
+					"pre_tags":            []string{"<mark>"},
+					"post_tags":           []string{"</mark>"},
+					"number_of_fragments": 0, // 返回整个标题
+				},
+				"content": map[string]interface{}{
+					"pre_tags":            []string{"<mark>"},
+					"post_tags":           []string{"</mark>"},
+					"fragment_size":       120,
+					"number_of_fragments": 5,
+					"fragment_offset":     10,
+				},
+				"summary": map[string]interface{}{
+					"pre_tags":            []string{"<mark>"},
+					"post_tags":           []string{"</mark>"},
+					"fragment_size":       100,
+					"number_of_fragments": 2,
+				},
+			},
+			"order": "score",
+		},
+		"from": (req.Page - 1) * req.PageSize,
+		"size": req.PageSize,
+		"sort": []map[string]interface{}{
+			{"_score": map[string]interface{}{"order": "desc"}},
+			{"published_at": map[string]interface{}{"order": "desc"}},
+		},
+		"_source": []string{"article_id", "title", "author_name", "category_name", "published_at"},
+	}
+
+	return query
+}
+
+// executeFullTextSearch 执行全文搜索
+func (s *ArticleSearchService) executeFullTextSearch(query map[string]interface{}) (*dto.FullTextSearchResponse, error) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(query); err != nil {
+		return nil, err
+	}
+
+	res, err := s.esClient.Search(
+		s.esClient.Search.WithContext(context.Background()),
+		s.esClient.Search.WithIndex("articles"),
+		s.esClient.Search.WithBody(&buf),
+		s.esClient.Search.WithTrackTotalHits(true),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, fmt.Errorf("ES全文搜索错误: %s", res.String())
+	}
+
+	return s.processFullTextSearchResponse(res)
+}
+
+// processFullTextSearchResponse 处理全文搜索响应
+func (s *ArticleSearchService) processFullTextSearchResponse(res *esapi.Response) (*dto.FullTextSearchResponse, error) {
+	var result map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	total := int64(result["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
+	hits := result["hits"].(map[string]interface{})["hits"].([]interface{})
+
+	items := make([]dto.FullTextSearchItem, 0, len(hits))
+
+	for _, hit := range hits {
+		hitMap := hit.(map[string]interface{})
+		source := hitMap["_source"].(map[string]interface{})
+		score := hitMap["_score"].(float64)
+
+		// 提取基本信息
+		articleID := uint(source["article_id"].(float64))
+		title := source["title"].(string)
+		authorName := source["author_name"].(string)
+		categoryName := source["category_name"].(string)
+		publishedAt := source["published_at"].(string)
+
+		// 处理高亮信息
+		var highlightedTitle string
+		var fragments []dto.ContentFragment
+
+		if highlight, exists := hitMap["highlight"]; exists {
+			highlightFields := highlight.(map[string]interface{})
+
+			// 处理标题高亮
+			if titleHighlights, exists := highlightFields["title"]; exists {
+				titleArray := titleHighlights.([]interface{})
+				if len(titleArray) > 0 {
+					highlightedTitle = titleArray[0].(string)
+				}
+			}
+
+			// 优先处理内容片段
+			if contentHighlights, exists := highlightFields["content"]; exists {
+				contentArray := contentHighlights.([]interface{})
+				for _, fragment := range contentArray {
+					fragmentStr := fragment.(string)
+					fragments = append(fragments, dto.ContentFragment{
+						Content:    fragmentStr,
+						Position:   -1, // 内容片段位置标记为-1
+						MatchScore: score * 0.8, // 内容片段权重较高
+					})
+				}
+			}
+
+			// 如果内容片段不足，补充摘要片段
+			if len(fragments) < 3 {
+				if summaryHighlights, exists := highlightFields["summary"]; exists {
+					summaryArray := summaryHighlights.([]interface{})
+					for _, fragment := range summaryArray {
+						if len(fragments) >= 5 { // 最多5个片段
+							break
+						}
+						fragmentStr := fragment.(string)
+						fragments = append(fragments, dto.ContentFragment{
+							Content:    fragmentStr,
+							Position:   -1, // 摘要片段位置标记为-1
+							MatchScore: score * 0.6, // 摘要片段权重较低
+						})
+					}
+				}
+			}
+		}
+
+		// 如果没有高亮标题，使用原标题
+		if highlightedTitle == "" {
+			highlightedTitle = title
+		}
+
+		// 格式化发布时间
+		if publishedAt != "" {
+			if parsedTime, err := time.Parse(time.RFC3339, publishedAt); err == nil {
+				publishedAt = parsedTime.Format("2006-01-02 15:04:05")
+			}
+		}
+
+		item := dto.FullTextSearchItem{
+			ArticleID:    articleID,
+			Title:        highlightedTitle,
+			AuthorName:   authorName,
+			CategoryName: categoryName,
+			PublishedAt:  publishedAt,
+			Fragments:    fragments,
+			Score:        score,
+		}
+
+		items = append(items, item)
+	}
+
+	return &dto.FullTextSearchResponse{
+		Total: total,
+		List:  items,
+	}, nil
 }

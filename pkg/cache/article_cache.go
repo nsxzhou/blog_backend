@@ -174,6 +174,18 @@ func (a *ArticleCacheService) SetSearchResults(ctx context.Context, query string
 	return a.cache.SetJSON(ctx, key, results, ArticleSearchExpiration)
 }
 
+// GetFullTextSearchResults 获取全文搜索结果缓存
+func (a *ArticleCacheService) GetFullTextSearchResults(ctx context.Context, query string, page, pageSize int, dest interface{}) error {
+	key := fmt.Sprintf(ArticleFullTextSearchKey, query, page, pageSize)
+	return a.cache.GetJSON(ctx, key, dest)
+}
+
+// SetFullTextSearchResults 设置全文搜索结果缓存
+func (a *ArticleCacheService) SetFullTextSearchResults(ctx context.Context, query string, page, pageSize int, results interface{}) error {
+	key := fmt.Sprintf(ArticleFullTextSearchKey, query, page, pageSize)
+	return a.cache.SetJSON(ctx, key, results, ArticleSearchExpiration)
+}
+
 // GetArticleStats 获取文章统计缓存
 func (a *ArticleCacheService) GetArticleStats(ctx context.Context) (string, error) {
 	return a.cache.Get(ctx, ArticleStatsKey)

@@ -212,9 +212,9 @@ func (s *ImageService) List(req *dto.ImageQueryRequest) (*dto.ImageListResponse,
 	// 构建查询
 	query := s.db.Model(&model.Image{})
 	// 添加查询条件
-	if req.UsageType != "" {
-		query = query.Where("usage_type = ?", req.UsageType)
-	}else{
+	if len(req.UsageTypes) > 0 {
+		query = query.Where("usage_type IN ?", req.UsageTypes)
+	} else {
 		query = query.Where("usage_type IN ('avatar', 'cover', 'content')")
 	}
 	if req.ArticleID > 0 {

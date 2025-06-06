@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nsxzhou1114/blog-api/internal/dto"
@@ -228,8 +229,12 @@ func (api *ImageApi) GetImagesByUsageType(c *gin.Context) {
 		return
 	}
 
-	// 设置使用类型
-	req.UsageType = usageType
+	// 设置使用类型，支持逗号分隔的多个类型
+	usageTypes := strings.Split(usageType, ",")
+	for i, t := range usageTypes {
+		usageTypes[i] = strings.TrimSpace(t)
+	}
+	req.UsageTypes = usageTypes
 
 	images, err := api.imageService.List(&req)
 	if err != nil {
@@ -263,6 +268,30 @@ func (api *ImageApi) GetImagesByArticle(c *gin.Context) {
 	images, err := api.imageService.List(&req)
 	if err != nil {
 		api.logger.Errorf("根据文章ID获取图片失败: %v", err)
+		response.Error(c, http.StatusInternalServerError, "获取图片失败", err)
+		return
+	}
+
+	response.Success(c, "获取成功", images)
+}
+
+// GetImagesByUsageTypes 根据多个使用类型获取图片（通过查询参数）
+func (api *ImageApi) GetImagesByUsageTypes(c *gin.Context) {
+	var req dto.ImageQueryRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "参数错误", err)
+		return
+	}
+
+	// 验证使用类型参数
+	if len(req.UsageTypes) == 0 {
+		response.Error(c, http.StatusBadRequest, "使用类型不能为空", nil)
+		return
+	}
+
+	images, err := api.imageService.List(&req)
+	if err != nil {
+		api.logger.Errorf("根据使用类型获取图片失败: %v", err)
 		response.Error(c, http.StatusInternalServerError, "获取图片失败", err)
 		return
 	}

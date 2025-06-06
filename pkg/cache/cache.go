@@ -44,6 +44,7 @@ const (
 	ArticleTagListKey       = "article:tag:%d:page:%d:size:%d"      // 标签文章列表
 	ArticleHotListKey       = "article:hot:page:%d:size:%d"         // 热门文章列表
 	ArticleSearchKey        = "article:search:%s:page:%d:size:%d"   // 搜索结果
+	ArticleFullTextSearchKey = "article:fulltext:%s:page:%d:size:%d" // 全文搜索结果
 	
 	// 统计相关缓存键
 	ArticleStatsKey         = "stats:article:total"                 // 文章总数统计

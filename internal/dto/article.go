@@ -236,3 +236,34 @@ type ArticleStatsResponse struct {
 	TopViewedArticles []ArticleStatItem `json:"top_viewed_articles"`
 	TopLikedArticles  []ArticleStatItem `json:"top_liked_articles"`
 }
+
+// FullTextSearchRequest 全文搜索请求
+type FullTextSearchRequest struct {
+	Keyword  string `form:"keyword" binding:"required,min=1"`           // 搜索关键词
+	Page     int    `form:"page" binding:"required,min=1"`              // 页码
+	PageSize int    `form:"page_size" binding:"required,min=5,max=20"`  // 每页条数（限制较小，因为返回片段）
+}
+
+// ContentFragment 内容片段
+type ContentFragment struct {
+	Content    string `json:"content"`     // 高亮的内容片段
+	Position   int    `json:"position"`    // 片段在原文中的位置
+	MatchScore float64 `json:"match_score"` // 匹配分数
+}
+
+// FullTextSearchItem 全文搜索结果项
+type FullTextSearchItem struct {
+	ArticleID    uint              `json:"article_id"`    // 文章ID
+	Title        string            `json:"title"`         // 文章标题（可能包含高亮）
+	AuthorName   string            `json:"author_name"`   // 作者名称
+	CategoryName string            `json:"category_name"` // 分类名称
+	PublishedAt  string            `json:"published_at"`  // 发布时间
+	Fragments    []ContentFragment `json:"fragments"`     // 内容片段列表
+	Score        float64           `json:"score"`         // 搜索相关性分数
+}
+
+// FullTextSearchResponse 全文搜索响应
+type FullTextSearchResponse struct {
+	Total int64                 `json:"total"` // 总数
+	List  []FullTextSearchItem `json:"list"`  // 搜索结果列表
+}

@@ -261,6 +261,24 @@ func (api *ArticleApi) GetArticleList(c *gin.Context) {
 	response.Success(c, "获取成功", result)
 }
 
+// FullTextSearch 全文搜索，返回内容片段
+func (api *ArticleApi) FullTextSearch(c *gin.Context) {
+	var req dto.FullTextSearchRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "参数错误", err)
+		return
+	}
+
+	result, err := api.articleSearchService.FullTextSearch(&req)
+	if err != nil {
+		api.logger.Errorf("全文搜索失败: %v", err)
+		response.Error(c, http.StatusInternalServerError, "全文搜索失败", err)
+		return
+	}
+
+	response.Success(c, "搜索成功", result)
+}
+
 // ArticleAction 文章交互操作（点赞、收藏等）
 func (api *ArticleApi) ArticleAction(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
