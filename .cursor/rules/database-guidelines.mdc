@@ -8,11 +8,13 @@ alwaysApply: true
 ## 数据库设计原则
 
 1. **表命名**:
+
    - 使用单数形式 (如 `user` 而非 `users`)
    - 使用下划线连接单词 (如 `blog_post`)
    - 表名前缀对相关表进行分组 (如 `blog_post`, `blog_comment`)
 
 2. **字段命名**:
+
    - 使用下划线命名法 (如 `created_at`)
    - 主键统一命名为 `id`
    - 外键命名为 `表名_id` (如 `user_id`)

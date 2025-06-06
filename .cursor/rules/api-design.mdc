@@ -8,12 +8,13 @@ alwaysApply: true
 ## RESTful API 原则
 
 1. **URL 命名**: 使用名词而非动词，表示资源
+
    ```
    # 正确
    GET /api/posts       - 获取所有文章
    GET /api/posts/123   - 获取特定文章
    POST /api/posts      - 创建新文章
-   
+
    # 错误
    GET /api/getPosts
    GET /api/getPost/123
@@ -21,6 +22,7 @@ alwaysApply: true
    ```
 
 2. **HTTP 方法**:
+
    - `GET`: 读取资源
    - `POST`: 创建资源
    - `PUT`: 完全更新资源
@@ -39,10 +41,11 @@ alwaysApply: true
 ## 响应格式
 
 统一的响应格式:
+
 ```json
 {
-  "code": 200,          // 状态码
+  "code": 200, // 状态码
   "message": "success", // 状态消息
-  "data": {}            // 响应数据
+  "data": {} // 响应数据
 }
 ```

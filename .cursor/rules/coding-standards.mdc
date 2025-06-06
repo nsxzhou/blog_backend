@@ -8,15 +8,17 @@ alwaysApply: true
 ## 命名规范
 
 1. **包名**: 使用小写单个单词，避免下划线或混合大小写
+
    ```go
    // 正确
    package model
-   
+
    // 错误
    package userModel
    ```
 
 2. **变量命名**:
+
    - 局部变量: 驼峰式命名法 (如 `userId`)
    - 全局变量: 首字母大写 (如 `DefaultTimeout`)
    - 常量: 全大写，单词间用下划线分隔 (如 `MAX_CONNECTIONS`)
@@ -28,10 +30,11 @@ alwaysApply: true
 ## 错误处理
 
 1. 使用有意义的错误信息
+
    ```go
    // 正确
    return nil, fmt.Errorf("failed to connect to database: %w", err)
-   
+
    // 错误
    return nil, errors.New("error")
    ```
@@ -41,13 +44,14 @@ alwaysApply: true
 ## 注释规范
 
 1. 所有导出的函数、类型和变量都应有注释
+
    ```go
    // User 表示系统中的用户实体
    type User struct {
        ID   int64  `json:"id"`
        Name string `json:"name"`
    }
-   
+
    // FindByID 根据ID查找用户
    func FindByID(id int64) (*User, error) {
        // ...
@@ -60,4 +64,4 @@ alwaysApply: true
 
 1. 使用 `gofmt` 或 `goimports` 格式化代码
 2. 缩进使用制表符而非空格
-3. 每行不超过100个字符
+3. 每行不超过 100 个字符
