@@ -934,7 +934,6 @@ func (s *ArticleSearchService) buildFullTextSearchQuery(req *dto.FullTextSearchR
 					"fragment_size":       100, // 减小片段大小
 					"number_of_fragments": 3,   // 减少片段数量
 					"fragment_offset":     5,   // 减小偏移量
-					"no_match_size":       80,  // 如果没有匹配，返回开头80个字符
 				},
 				"summary": map[string]interface{}{
 					"pre_tags":            []string{"<mark>"},
