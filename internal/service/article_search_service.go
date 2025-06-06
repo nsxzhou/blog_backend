@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"strings"
 	"sync"
 	"time"
@@ -370,14 +371,27 @@ func (s *ArticleSearchService) buildESQuery(req *dto.ArticleListRequest) map[str
 		},
 		"highlight": map[string]interface{}{
 			"fields": map[string]interface{}{
-				"title":   map[string]interface{}{},
-				"content": map[string]interface{}{},
-				"summary": map[string]interface{}{},
+				"title": map[string]interface{}{
+					"pre_tags":            []string{"<mark>"},
+					"post_tags":           []string{"</mark>"},
+					"number_of_fragments": 0, // 返回整个标题
+				},
+				"content": map[string]interface{}{
+					"pre_tags":            []string{"<mark>"},
+					"post_tags":           []string{"</mark>"},
+					"fragment_size":       100, // 减小片段大小
+					"number_of_fragments": 3,   // 减少片段数量
+					"fragment_offset":     5,   // 减小偏移量
+					"no_match_size":       80,  // 如果没有匹配，返回开头80个字符
+				},
+				"summary": map[string]interface{}{
+					"pre_tags":            []string{"<mark>"},
+					"post_tags":           []string{"</mark>"},
+					"fragment_size":       80,  // 减小摘要片段大小
+					"number_of_fragments": 2,   // 最多2个摘要片段
+				},
 			},
-			"pre_tags":            []string{"<em>"},
-			"post_tags":           []string{"</em>"},
-			"fragment_size":       150,
-			"number_of_fragments": 3,
+			"order": "score",
 		},
 		"from": (req.Page - 1) * req.PageSize,
 		"size": req.PageSize,
@@ -917,15 +931,16 @@ func (s *ArticleSearchService) buildFullTextSearchQuery(req *dto.FullTextSearchR
 				"content": map[string]interface{}{
 					"pre_tags":            []string{"<mark>"},
 					"post_tags":           []string{"</mark>"},
-					"fragment_size":       120,
-					"number_of_fragments": 5,
-					"fragment_offset":     10,
+					"fragment_size":       100, // 减小片段大小
+					"number_of_fragments": 3,   // 减少片段数量
+					"fragment_offset":     5,   // 减小偏移量
+					"no_match_size":       80,  // 如果没有匹配，返回开头80个字符
 				},
 				"summary": map[string]interface{}{
 					"pre_tags":            []string{"<mark>"},
 					"post_tags":           []string{"</mark>"},
-					"fragment_size":       100,
-					"number_of_fragments": 2,
+					"fragment_size":       80,  // 减小摘要片段大小
+					"number_of_fragments": 2,   // 最多2个摘要片段
 				},
 			},
 			"order": "score",
@@ -1011,11 +1026,14 @@ func (s *ArticleSearchService) processFullTextSearchResponse(res *esapi.Response
 				contentArray := contentHighlights.([]interface{})
 				for _, fragment := range contentArray {
 					fragmentStr := fragment.(string)
-					fragments = append(fragments, dto.ContentFragment{
-						Content:    fragmentStr,
-						Position:   -1, // 内容片段位置标记为-1
-						MatchScore: score * 0.8, // 内容片段权重较高
-					})
+					// 清理内容片段
+						if fragmentStr != "" { // 只添加非空片段
+						fragments = append(fragments, dto.ContentFragment{
+							Content:    fragmentStr,
+							Position:   -1, // 内容片段位置标记为-1
+							MatchScore: score * 0.8, // 内容片段权重较高
+						})
+					}
 				}
 			}
 
@@ -1028,11 +1046,14 @@ func (s *ArticleSearchService) processFullTextSearchResponse(res *esapi.Response
 							break
 						}
 						fragmentStr := fragment.(string)
-						fragments = append(fragments, dto.ContentFragment{
-							Content:    fragmentStr,
-							Position:   -1, // 摘要片段位置标记为-1
-							MatchScore: score * 0.6, // 摘要片段权重较低
-						})
+						// 清理摘要片段
+						if fragmentStr != "" { // 只添加非空片段
+							fragments = append(fragments, dto.ContentFragment{
+								Content:    fragmentStr,
+								Position:   -1, // 摘要片段位置标记为-1
+								MatchScore: score * 0.6, // 摘要片段权重较低
+							})
+						}
 					}
 				}
 			}
