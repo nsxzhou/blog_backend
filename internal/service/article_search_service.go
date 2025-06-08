@@ -39,12 +39,12 @@ type ArticleSearchService struct {
 func NewArticleSearchService() *ArticleSearchService {
 	articleSearchServiceOnce.Do(func() {
 		articleSearchService = &ArticleSearchService{
-		db:           database.GetDB(),
-		esClient:     database.GetES(),
-		log:          logger.GetSugaredLogger(),
-		cacheManager: cache.GetManager(),
-	}
-	
+			db:           database.GetDB(),
+			esClient:     database.GetES(),
+			log:          logger.GetSugaredLogger(),
+			cacheManager: cache.GetManager(),
+		}
+
 		articleSearchService.initializeCache()
 	})
 	return articleSearchService
@@ -133,7 +133,7 @@ func (s *ArticleSearchService) searchWithCache(
 	logPrefix string,
 ) (*dto.ArticleListResponse, error) {
 	ctx := context.Background()
-	
+
 	// 尝试从缓存获取
 	if s.articleCache != nil {
 		if cachedResponse, err := getCacheFunc(ctx); err == nil {
@@ -141,13 +141,13 @@ func (s *ArticleSearchService) searchWithCache(
 			return cachedResponse, nil
 		}
 	}
-	
+
 	// 缓存未命中，从数据库查询
 	response, err := queryFunc()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 异步设置缓存
 	if s.articleCache != nil {
 		go func() {
@@ -158,7 +158,7 @@ func (s *ArticleSearchService) searchWithCache(
 			}
 		}()
 	}
-	
+
 	return response, nil
 }
 
@@ -387,8 +387,8 @@ func (s *ArticleSearchService) buildESQuery(req *dto.ArticleListRequest) map[str
 				"summary": map[string]interface{}{
 					"pre_tags":            []string{"<mark>"},
 					"post_tags":           []string{"</mark>"},
-					"fragment_size":       80,  // 减小摘要片段大小
-					"number_of_fragments": 2,   // 最多2个摘要片段
+					"fragment_size":       80, // 减小摘要片段大小
+					"number_of_fragments": 2,  // 最多2个摘要片段
 				},
 			},
 			"order": "score",
@@ -658,7 +658,7 @@ func (s *ArticleSearchService) processESResponse(res *esapi.Response) (*dto.Arti
 	if len(articleIDs) == 0 {
 		return &dto.ArticleListResponse{
 			Total: 0,
-			List: []dto.ArticleListItem{},
+			List:  []dto.ArticleListItem{},
 		}, nil
 	}
 
@@ -675,7 +675,7 @@ func (s *ArticleSearchService) processESResponse(res *esapi.Response) (*dto.Arti
 
 	return &dto.ArticleListResponse{
 		Total: total,
-		List: items,
+		List:  items,
 	}, nil
 }
 
@@ -938,8 +938,8 @@ func (s *ArticleSearchService) buildFullTextSearchQuery(req *dto.FullTextSearchR
 				"summary": map[string]interface{}{
 					"pre_tags":            []string{"<mark>"},
 					"post_tags":           []string{"</mark>"},
-					"fragment_size":       80,  // 减小摘要片段大小
-					"number_of_fragments": 2,   // 最多2个摘要片段
+					"fragment_size":       80, // 减小摘要片段大小
+					"number_of_fragments": 2,  // 最多2个摘要片段
 				},
 			},
 			"order": "score",
@@ -1026,10 +1026,10 @@ func (s *ArticleSearchService) processFullTextSearchResponse(res *esapi.Response
 				for _, fragment := range contentArray {
 					fragmentStr := fragment.(string)
 					// 清理内容片段
-						if fragmentStr != "" { // 只添加非空片段
+					if fragmentStr != "" { // 只添加非空片段
 						fragments = append(fragments, dto.ContentFragment{
 							Content:    fragmentStr,
-							Position:   -1, // 内容片段位置标记为-1
+							Position:   -1,          // 内容片段位置标记为-1
 							MatchScore: score * 0.8, // 内容片段权重较高
 						})
 					}
@@ -1049,7 +1049,7 @@ func (s *ArticleSearchService) processFullTextSearchResponse(res *esapi.Response
 						if fragmentStr != "" { // 只添加非空片段
 							fragments = append(fragments, dto.ContentFragment{
 								Content:    fragmentStr,
-								Position:   -1, // 摘要片段位置标记为-1
+								Position:   -1,          // 摘要片段位置标记为-1
 								MatchScore: score * 0.6, // 摘要片段权重较低
 							})
 						}

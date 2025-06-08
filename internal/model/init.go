@@ -37,6 +37,7 @@ var models = []interface{}{
 	&OperationLog{},
 	&Setting{},
 	&Image{},
+	&ReadingHistory{},
 }
 
 // InitTables 初始化数据库表

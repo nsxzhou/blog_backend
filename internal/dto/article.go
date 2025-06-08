@@ -29,7 +29,7 @@ type ArticleUpdateRequest struct {
 	AccessType string `json:"access_type" binding:"omitempty,oneof=public private password"` // 访问类型
 	Password   string `json:"password"`                                                      // 访问密码
 	IsTop      int    `json:"is_top" binding:"omitempty,oneof=0 1 2"`                        // 是否置顶: 0=否 1=是 2=全部
-	IsOriginal int    `json:"is_original" binding:"omitempty,oneof=0 1 2"`               // 是否原创: 0=转载 1=原创 2=全部
+	IsOriginal int    `json:"is_original" binding:"omitempty,oneof=0 1 2"`                   // 是否原创: 0=转载 1=原创 2=全部
 	SourceURL  string `json:"source_url"`                                                    // 转载来源URL
 	SourceName string `json:"source_name"`                                                   // 转载来源名称
 }
@@ -41,8 +41,8 @@ type ArticleQueryRequest struct {
 	CategoryID uint   `form:"category_id"`                                                                                    // 分类ID
 	TagID      uint   `form:"tag_id"`                                                                                         // 标签ID
 	AuthorID   uint   `form:"author_id"`                                                                                      // 作者ID
-	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1 2"`                         // 是否置顶: 0=否 1=是 2=全部
-	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1 2"`                 // 是否原创: 0=转载 1=原创 2=全部
+	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1 2"`                                                         // 是否置顶: 0=否 1=是 2=全部
+	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1 2"`                                                    // 是否原创: 0=转载 1=原创 2=全部
 	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password"`                                  // 访问类型
 	StartDate  string `form:"start_date"`                                                                                     // 开始日期
 	EndDate    string `form:"end_date"`                                                                                       // 结束日期
@@ -123,7 +123,7 @@ type SimpleArticle struct {
 // ArticleListResponse 文章列表响应
 type ArticleListResponse struct {
 	Total int64             `json:"total"` // 总数
-	List []ArticleListItem `json:"list"` // 列表项
+	List  []ArticleListItem `json:"list"`  // 列表项
 }
 
 // TagInfo 标签信息(简化版)
@@ -139,21 +139,21 @@ type ArticleListRequest struct {
 	CategoryID uint   `form:"category_id"` // 分类ID
 	TagID      uint   `form:"tag_id"`      // 标签ID
 	AuthorID   uint   `form:"author_id"`   // 作者ID
-	
+
 	// 过滤条件
 	Status     string `form:"status" binding:"omitempty,oneof=draft published all"`              // 状态: draft published all
 	AccessType string `form:"access_type" binding:"omitempty,oneof=public private password all"` // 访问类型: public private password all
-	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1 2"`                          // 是否置顶: 0=否 1=是 2=全部
-	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1 2"`                     // 是否原创: 0=转载 1=原创 2=全部
-	
+	IsTop      int    `form:"is_top" binding:"omitempty,oneof=0 1 2"`                            // 是否置顶: 0=否 1=是 2=全部
+	IsOriginal int    `form:"is_original" binding:"omitempty,oneof=0 1 2"`                       // 是否原创: 0=转载 1=原创 2=全部
+
 	// 时间范围
 	StartDate string `form:"start_date"` // 开始日期
 	EndDate   string `form:"end_date"`   // 结束日期
-	
+
 	// 排序方式
 	SortBy string `form:"sort_by" binding:"omitempty,oneof=latest hot score created_at published_at view_count like_count comment_count"` // 排序类型
-	Order  string `form:"order" binding:"omitempty,oneof=asc desc"`                                                                      // 排序方向
-	
+	Order  string `form:"order" binding:"omitempty,oneof=asc desc"`                                                                       // 排序方向
+
 	// 分页
 	Page     int `form:"page" binding:"required,min=1"`             // 页码
 	PageSize int `form:"page_size" binding:"required,min=5,max=50"` // 每页条数
@@ -239,15 +239,15 @@ type ArticleStatsResponse struct {
 
 // FullTextSearchRequest 全文搜索请求
 type FullTextSearchRequest struct {
-	Keyword  string `form:"keyword" binding:"required,min=1"`           // 搜索关键词
-	Page     int    `form:"page" binding:"required,min=1"`              // 页码
-	PageSize int    `form:"page_size" binding:"required,min=5,max=20"`  // 每页条数（限制较小，因为返回片段）
+	Keyword  string `form:"keyword" binding:"required,min=1"`          // 搜索关键词
+	Page     int    `form:"page" binding:"required,min=1"`             // 页码
+	PageSize int    `form:"page_size" binding:"required,min=5,max=20"` // 每页条数（限制较小，因为返回片段）
 }
 
 // ContentFragment 内容片段
 type ContentFragment struct {
-	Content    string `json:"content"`     // 高亮的内容片段
-	Position   int    `json:"position"`    // 片段在原文中的位置
+	Content    string  `json:"content"`     // 高亮的内容片段
+	Position   int     `json:"position"`    // 片段在原文中的位置
 	MatchScore float64 `json:"match_score"` // 匹配分数
 }
 
@@ -264,6 +264,6 @@ type FullTextSearchItem struct {
 
 // FullTextSearchResponse 全文搜索响应
 type FullTextSearchResponse struct {
-	Total int64                 `json:"total"` // 总数
+	Total int64                `json:"total"` // 总数
 	List  []FullTextSearchItem `json:"list"`  // 搜索结果列表
 }

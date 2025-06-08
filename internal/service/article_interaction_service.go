@@ -326,7 +326,7 @@ func (s *ArticleInteractionService) checkArticlePermission(authorID, userID uint
 
 // validateStatus 验证状态值
 func (s *ArticleInteractionService) validateStatus(status string) error {
-	validStatuses := []string{"draft", "published", "archived"}
+	validStatuses := []string{"draft", "published"}
 	for _, validStatus := range validStatuses {
 		if status == validStatus {
 			return nil

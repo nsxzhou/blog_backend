@@ -14,7 +14,7 @@ func Setup(r *gin.Engine) {
 	if cfg.Image.LocalEnabled {
 		// 提供静态文件服务，将 /uploads/images 路径映射到本地存储目录
 		r.Static("/uploads/images", cfg.Image.Upload.Local.UploadPath)
-		
+
 		// 为了兼容性，也提供 /images 路径的访问方式
 		r.Static("/images", cfg.Image.Upload.Local.UploadPath)
 	}
@@ -39,6 +39,9 @@ func Setup(r *gin.Engine) {
 
 	// 图片相关路由
 	setupImageRoutes(api)
+
+	// 阅读历史相关路由
+	setupReadingHistoryRoutes(api)
 }
 
 // setupUserRoutes 设置用户相关路由
@@ -97,7 +100,7 @@ func setupUserRoutes(api *gin.RouterGroup) {
 		authUserRoutes.GET("/followers", userApi.GetFollowers)
 		// 获取当前用户关注列表
 		authUserRoutes.GET("/following", userApi.GetFollowing)
-		
+
 	}
 
 	// 需要管理员权限的路由
@@ -347,15 +350,35 @@ func setupImageRoutes(api *gin.RouterGroup) {
 // }
 
 // func setupImportExportRoutes(api *gin.RouterGroup) {
-//     importExportApi := controller.NewImportExportApi()  
+//     importExportApi := controller.NewImportExportApi()
 //     adminRoutes := api.Group("/import-export", middleware.AdminAuth())
 //     {
 //         // 导出数据
 //         adminRoutes.POST("/export/articles", importExportApi.ExportArticles)
 //         adminRoutes.POST("/export/users", importExportApi.ExportUsers)
-//         adminRoutes.POST("/export/comments", importExportApi.ExportComments)       
+//         adminRoutes.POST("/export/comments", importExportApi.ExportComments)
 //         // 导入数据
 //         adminRoutes.POST("/import/articles", importExportApi.ImportArticles)
 //         adminRoutes.GET("/import/status/:task_id", importExportApi.GetImportStatus)
 //     }
 // }
+
+// setupReadingHistoryRoutes 设置阅读历史相关路由
+func setupReadingHistoryRoutes(api *gin.RouterGroup) {
+	readingHistoryApi := controller.NewReadingHistoryApi()
+
+	// 需要认证的路由
+	authReadingHistoryRoutes := api.Group("/reading-history", middleware.JWTAuth())
+	{
+		// 记录阅读历史
+		authReadingHistoryRoutes.POST("", readingHistoryApi.CreateOrUpdate)
+		// 获取用户阅读历史列表
+		authReadingHistoryRoutes.GET("", readingHistoryApi.GetUserReadingHistory)
+		// 删除阅读历史记录（批量）
+		authReadingHistoryRoutes.DELETE("", readingHistoryApi.DeleteReadingHistory)
+		// 删除单条阅读历史记录
+		authReadingHistoryRoutes.DELETE("/:id", readingHistoryApi.DeleteSingleRecord)
+		// 清空用户所有阅读历史
+		authReadingHistoryRoutes.DELETE("/clear", readingHistoryApi.ClearUserReadingHistory)
+	}
+}

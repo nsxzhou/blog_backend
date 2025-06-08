@@ -42,7 +42,7 @@ var serveCmd = &cobra.Command{
 func init() {
 	// 添加全局标志
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "./config", "配置文件路径")
-	
+
 	// 添加子命令
 	rootCmd.AddCommand(serveCmd)
 }

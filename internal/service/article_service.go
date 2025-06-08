@@ -46,7 +46,7 @@ func NewArticleService() *ArticleService {
 			cacheManager: cache.GetManager(),
 			tagService:   NewTagService(),
 		}
-	
+
 		articleService.initializeCache()
 	})
 	return articleService
@@ -66,7 +66,7 @@ func (s *ArticleService) initializeCache() {
 // Create 创建文章
 func (s *ArticleService) Create(userID uint, req *dto.ArticleCreateRequest) (*model.Article, error) {
 	article := s.buildArticleFromRequest(userID, req)
-	
+
 	return s.executeTransaction(func(tx *gorm.DB) (*model.Article, error) {
 		if err := tx.Create(article).Error; err != nil {
 			return nil, err
@@ -186,7 +186,7 @@ func (s *ArticleService) GetArticleDetail(articleID uint, currentUserID uint) (*
 	if cachedResponse := s.tryGetCachedDetail(ctx, articleID, currentUserID); cachedResponse != nil {
 		return cachedResponse, nil
 	}
-	
+
 	// 从数据库获取
 	var article model.Article
 	if err := s.db.Preload("Author").Preload("Category").Preload("Tags").First(&article, articleID).Error; err != nil {
@@ -202,7 +202,7 @@ func (s *ArticleService) GetArticleDetail(articleID uint, currentUserID uint) (*
 
 	response := s.buildArticleDetailResponse(&article, content, currentUserID)
 	s.setCacheAsync(ctx, articleID, response)
-	
+
 	return response, nil
 }
 
@@ -286,7 +286,7 @@ func (s *ArticleService) buildArticleFromRequest(userID uint, req *dto.ArticleCr
 // buildUpdateData 构建更新数据
 func (s *ArticleService) buildUpdateData(req *dto.ArticleUpdateRequest) map[string]interface{} {
 	updates := map[string]interface{}{}
-	
+
 	if req.Title != "" {
 		updates["title"] = req.Title
 	}
@@ -430,13 +430,13 @@ func (s *ArticleService) tryGetCachedDetail(ctx context.Context, articleID uint,
 	err := s.articleCache.GetArticleDetail(ctx, articleID, &cachedResponse)
 	if err == nil {
 		s.log.Infof("文章详情缓存命中: articleID=%d", articleID)
-		
+
 		go s.incrementViewCount(articleID)
 		if currentUserID > 0 {
 			cachedResponse.IsLiked = s.checkUserLiked(currentUserID, articleID)
 			cachedResponse.IsFavorited = s.checkUserFavorited(currentUserID, articleID)
 		}
-		
+
 		return &cachedResponse
 	} else if err != redis.Nil {
 		s.log.Warnf("获取文章缓存失败: %v", err)
@@ -498,7 +498,7 @@ func (s *ArticleService) buildArticleDetailResponse(article *model.Article, cont
 // getAdjacentArticles 获取相邻文章
 func (s *ArticleService) getAdjacentArticles(articleID uint) (*dto.SimpleArticle, *dto.SimpleArticle) {
 	var prevArticle, nextArticle model.Article
-	
+
 	s.db.Where("id < ? AND status = 'published' AND access_type = 'public'", articleID).
 		Order("id DESC").Limit(1).
 		Select("id, title, cover_image, published_at").
@@ -547,7 +547,7 @@ func (s *ArticleService) convertToSimpleArticle(article *model.Article) *dto.Sim
 	if article.PublishedAt != nil {
 		publishedAtStr = article.PublishedAt.Format("2006-01-02 15:04:05")
 	}
-	
+
 	return &dto.SimpleArticle{
 		ID:          article.ID,
 		Title:       article.Title,
@@ -697,7 +697,7 @@ func (s *ArticleService) setCacheAsync(ctx context.Context, articleID uint, resp
 		cacheResponse := *response
 		cacheResponse.IsLiked = false
 		cacheResponse.IsFavorited = false
-		
+
 		if err := s.articleCache.SetArticleDetail(context.Background(), articleID, &cacheResponse); err != nil {
 			s.log.Warnf("设置文章详情缓存失败: %v", err)
 		} else {
@@ -714,20 +714,20 @@ func (s *ArticleService) handleCacheAsyncCreate(article *model.Article) {
 
 	go func() {
 		ctx := context.Background()
-		
+
 		if err := s.articleCache.BatchAddArticlesToBloomFilter(ctx, []uint{article.ID}); err != nil {
 			s.log.Warnf("添加文章到布隆过滤器失败: %v", err)
 		}
-		
+
 		tagIDs := make([]uint, 0, len(article.Tags))
 		for _, tag := range article.Tags {
 			tagIDs = append(tagIDs, tag.ID)
 		}
-		
+
 		if err := s.articleCache.InvalidateArticleCaches(ctx, article.ID, article.CategoryID, tagIDs); err != nil {
 			s.log.Warnf("清除文章相关缓存失败: %v", err)
 		}
-		
+
 		s.log.Infof("文章缓存处理完成: articleID=%d", article.ID)
 	}()
 }
@@ -740,16 +740,16 @@ func (s *ArticleService) handleCacheAsyncUpdate(article *model.Article) {
 
 	go func() {
 		ctx := context.Background()
-		
+
 		tagIDs := make([]uint, 0, len(article.Tags))
 		for _, tag := range article.Tags {
 			tagIDs = append(tagIDs, tag.ID)
 		}
-		
+
 		if err := s.articleCache.InvalidateArticleCaches(ctx, article.ID, article.CategoryID, tagIDs); err != nil {
 			s.log.Warnf("清除文章相关缓存失败: %v", err)
 		}
-		
+
 		s.log.Infof("文章更新缓存清理完成: articleID=%d", article.ID)
 	}()
 }
@@ -762,11 +762,11 @@ func (s *ArticleService) handleCacheAsyncDelete(articleID, categoryID uint) {
 
 	go func() {
 		ctx := context.Background()
-		
+
 		if err := s.articleCache.InvalidateArticleCaches(ctx, articleID, categoryID, []uint{}); err != nil {
 			s.log.Warnf("清除文章相关缓存失败: %v", err)
 		}
-		
+
 		s.log.Infof("文章删除缓存清理完成: articleID=%d", articleID)
 	}()
 }
