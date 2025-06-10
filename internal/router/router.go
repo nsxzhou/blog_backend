@@ -42,6 +42,9 @@ func Setup(r *gin.Engine) {
 
 	// 阅读历史相关路由
 	setupReadingHistoryRoutes(api)
+
+	// RSS相关路由
+	//setupRSSRoutes(api)
 }
 
 // setupUserRoutes 设置用户相关路由
@@ -383,4 +386,14 @@ func setupReadingHistoryRoutes(api *gin.RouterGroup) {
 		// 清空用户所有阅读历史
 		authReadingHistoryRoutes.DELETE("/clear", readingHistoryApi.ClearUserReadingHistory)
 	}
+}
+
+// setupRSSRoutes 设置RSS相关路由
+func setupRSSRoutes(api *gin.RouterGroup) {
+	rssApi := controller.NewRSSApi()
+
+	// RSS订阅路由（公开接口）
+	api.GET("/rss", rssApi.GetRSSFeed)
+	// 获取RSS订阅链接
+	api.GET("/rss/url", rssApi.GetRSSURL)
 }
