@@ -145,9 +145,15 @@ func (s *ArticleService) Delete(userID uint, articleID uint, role string) error 
 
 	return s.executeDeleteTransaction(func(tx *gorm.DB) error {
 		// 获取文章的标签列表，用于更新计数
-		var tagIDs []uint
-		if err := tx.Model(&article).Association("Tags").Find(&tagIDs); err != nil {
+		var tags []model.Tag
+		if err := tx.Model(&article).Association("Tags").Find(&tags); err != nil {
 			s.log.Warnf("获取文章标签列表失败: %v", err)
+		}
+
+		// 提取标签ID
+		var tagIDs []uint
+		for _, tag := range tags {
+			tagIDs = append(tagIDs, tag.ID)
 		}
 
 		if err := tx.Delete(&article).Error; err != nil {
