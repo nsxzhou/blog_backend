@@ -9,6 +9,7 @@ import (
 	"github.com/nsxzhou1114/blog-api/internal/logger"
 	"github.com/nsxzhou1114/blog-api/internal/middleware"
 	"github.com/nsxzhou1114/blog-api/internal/service"
+	"github.com/nsxzhou1114/blog-api/pkg/auth"
 	"github.com/nsxzhou1114/blog-api/pkg/response"
 	"github.com/nsxzhou1114/blog-api/pkg/websocket"
 	"go.uber.org/zap"
@@ -30,14 +31,38 @@ func NewWebSocketApi() *WebSocketApi {
 	}
 }
 
-// HandleWebSocket 处理WebSocket连接
+// HandleWebSocket 处理WebSocket连接（修复版）
 func (api *WebSocketApi) HandleWebSocket(c *gin.Context) {
-	userID, exists := middleware.GetUserID(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "需要登录"})
+	// 从查询参数获取token
+	token := c.Query("token")
+	if token == "" {
+		api.logger.Warnf("WebSocket连接缺少认证token")
+		c.Status(http.StatusUnauthorized)
+		c.Abort()
 		return
 	}
 
+	// 验证token
+	claims, err := auth.ParseToken(token)
+	if err != nil {
+		api.logger.Warnf("WebSocket连接token验证失败: %v", err)
+		c.Status(http.StatusUnauthorized)
+		c.Abort()
+		return
+	}
+
+	// 验证token类型
+	if claims.Type != auth.AccessToken {
+		api.logger.Warnf("WebSocket连接使用了错误类型的token: %v", claims.Type)
+		c.Status(http.StatusUnauthorized)
+		c.Abort()
+		return
+	}
+
+	userID := claims.UserID
+	api.logger.Infof("用户 %d 尝试建立WebSocket连接", userID)
+
+	// 直接调用WebSocket管理器处理连接
 	api.websocketManager.HandleWebSocket(c, userID)
 }
 
@@ -177,4 +202,20 @@ func (api *WebSocketApi) BatchDeleteNotifications(c *gin.Context) {
 func (api *WebSocketApi) GetWebSocketStats(c *gin.Context) {
 	stats := api.websocketManager.GetStats()
 	response.Success(c, "获取成功", stats)
-} 
+}
+
+// GetWebSocketHealth 获取WebSocket健康状态（管理员）
+func (api *WebSocketApi) GetWebSocketHealth(c *gin.Context) {
+	health := api.websocketManager.GetHealthStatus()
+	response.Success(c, "获取成功", health)
+}
+
+// TestWebSocketConnection 测试WebSocket连接（管理员）
+func (api *WebSocketApi) TestWebSocketConnection(c *gin.Context) {
+	if err := api.websocketManager.TestConnection(); err != nil {
+		api.logger.Errorf("WebSocket连接测试失败: %v", err)
+		response.Error(c, http.StatusInternalServerError, "连接测试失败", err)
+		return
+	}
+	response.Success(c, "连接测试成功", nil)
+}

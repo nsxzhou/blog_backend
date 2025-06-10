@@ -139,8 +139,12 @@ func startServer() {
 	<-quit
 	logger.Info("关闭服务...")
 
+	// 优雅关闭WebSocket管理器
+	websocketManager := websocket.GetManager()
+	websocketManager.Shutdown()
+
 	// 设置关闭超时
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
