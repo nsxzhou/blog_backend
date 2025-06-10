@@ -45,7 +45,7 @@ func (s *ArticleInteractionService) LikeArticle(userID, articleID uint) error {
 
 	var like model.ArticleLike
 	result := s.db.Where("user_id = ? AND article_id = ?", userID, articleID).First(&like)
-	
+
 	if result.Error == nil {
 		// 已点赞，取消点赞
 		return s.executeInteractionTransaction(func(tx *gorm.DB) error {
@@ -89,7 +89,7 @@ func (s *ArticleInteractionService) FavoriteArticle(userID, articleID uint) erro
 
 	var favorite model.Favorite
 	result := s.db.Where("user_id = ? AND article_id = ?", userID, articleID).First(&favorite)
-	
+
 	if result.Error == nil {
 		// 已收藏，取消收藏
 		return s.executeInteractionTransaction(func(tx *gorm.DB) error {
@@ -201,6 +201,23 @@ func (s *ArticleInteractionService) GetArticleStats(userID uint) (*dto.ArticleSt
 
 	// 获取TOP文章
 	if err := s.getTopArticles(userID, &stats); err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}
+
+// GetAllArticleStats 获取全站文章统计信息
+func (s *ArticleInteractionService) GetAllArticleStats() (*dto.ArticleStatsResponse, error) {
+	var stats dto.ArticleStatsResponse
+
+	// 获取全站基础统计数据
+	if err := s.getAllBasicStats(&stats); err != nil {
+		return nil, err
+	}
+
+	// 获取全站TOP文章
+	if err := s.getAllTopArticles(&stats); err != nil {
 		return nil, err
 	}
 
@@ -424,6 +441,101 @@ func (s *ArticleInteractionService) getTopArticles(userID uint, stats *dto.Artic
 	}
 	if err := s.db.Model(&model.Article{}).
 		Where("author_id = ?", userID).
+		Select("id, title, like_count").
+		Order("like_count DESC").
+		Limit(5).
+		Find(&topLikedArticles).Error; err != nil {
+		return err
+	}
+
+	stats.TopLikedArticles = make([]dto.ArticleStatItem, 0, len(topLikedArticles))
+	for _, article := range topLikedArticles {
+		stats.TopLikedArticles = append(stats.TopLikedArticles, dto.ArticleStatItem{
+			ID:    article.ID,
+			Title: article.Title,
+			Count: article.LikeCount,
+		})
+	}
+
+	return nil
+}
+
+// getAllBasicStats 获取全站基础统计数据
+func (s *ArticleInteractionService) getAllBasicStats(stats *dto.ArticleStatsResponse) error {
+	queries := []struct {
+		query  string
+		result *int64
+	}{
+		{"", &stats.TotalArticles},
+		{"status = 'published'", &stats.PublishedArticles},
+		{"status = 'draft'", &stats.DraftArticles},
+	}
+
+	for _, q := range queries {
+		query := s.db.Model(&model.Article{})
+		if q.query != "" {
+			query = query.Where(q.query)
+		}
+		if err := query.Count(q.result).Error; err != nil {
+			return err
+		}
+	}
+
+	// 获取聚合统计
+	aggregateQueries := []struct {
+		field  string
+		result *int64
+	}{
+		{"view_count", &stats.TotalViews},
+		{"like_count", &stats.TotalLikes},
+		{"comment_count", &stats.TotalComments},
+		{"favorite_count", &stats.TotalFavorites},
+		{"word_count", &stats.TotalWordCount},
+	}
+
+	for _, q := range aggregateQueries {
+		if err := s.db.Model(&model.Article{}).
+			Select(fmt.Sprintf("COALESCE(SUM(%s), 0)", q.field)).
+			Row().Scan(q.result); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getAllTopArticles 获取全站TOP文章
+func (s *ArticleInteractionService) getAllTopArticles(stats *dto.ArticleStatsResponse) error {
+	// 访问量最高的文章
+	var topViewedArticles []struct {
+		ID        uint   `json:"id"`
+		Title     string `json:"title"`
+		ViewCount int64  `json:"view_count"`
+	}
+	if err := s.db.Model(&model.Article{}).
+		Select("id, title, view_count").
+		Order("view_count DESC").
+		Limit(5).
+		Find(&topViewedArticles).Error; err != nil {
+		return err
+	}
+
+	stats.TopViewedArticles = make([]dto.ArticleStatItem, 0, len(topViewedArticles))
+	for _, article := range topViewedArticles {
+		stats.TopViewedArticles = append(stats.TopViewedArticles, dto.ArticleStatItem{
+			ID:    article.ID,
+			Title: article.Title,
+			Count: article.ViewCount,
+		})
+	}
+
+	// 点赞最高的文章
+	var topLikedArticles []struct {
+		ID        uint   `json:"id"`
+		Title     string `json:"title"`
+		LikeCount int64  `json:"like_count"`
+	}
+	if err := s.db.Model(&model.Article{}).
 		Select("id, title, like_count").
 		Order("like_count DESC").
 		Limit(5).

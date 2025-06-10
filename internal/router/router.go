@@ -194,6 +194,8 @@ func setupArticleRoutes(api *gin.RouterGroup) {
 		articleRoutes.GET("/category/:id", articleApi.GetArticlesByCategory)
 		// 获取点赞用户
 		articleRoutes.GET("/:id/like-users", articleApi.GetArticleLikeUsers)
+		// 获取全站文章统计数据
+		articleRoutes.GET("/stats/all", articleApi.GetAllArticleStats)
 	}
 
 	// 需要认证的路由

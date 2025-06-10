@@ -311,7 +311,7 @@ func (api *ArticleApi) ArticleAction(c *gin.Context) {
 }
 
 // GetUserFavorites 获取用户收藏的文章
-func (api *ArticleApi) 	GetUserFavorites(c *gin.Context) {
+func (api *ArticleApi) GetUserFavorites(c *gin.Context) {
 	userID, err := getUserIDFromContext(c)
 	if err != nil {
 		response.Error(c, http.StatusUnauthorized, "未授权", err)
@@ -364,6 +364,18 @@ func (api *ArticleApi) GetArticleStat(c *gin.Context) {
 	stat, err := api.articleInteractionService.GetArticleStats(userID)
 	if err != nil {
 		api.logger.Errorf("获取文章统计数据失败: %v", err)
+		response.Error(c, http.StatusInternalServerError, "获取统计数据失败", err)
+		return
+	}
+
+	response.Success(c, "获取成功", stat)
+}
+
+// GetAllArticleStats 获取全站文章统计数据（管理员接口）
+func (api *ArticleApi) GetAllArticleStats(c *gin.Context) {
+	stat, err := api.articleInteractionService.GetAllArticleStats()
+	if err != nil {
+		api.logger.Errorf("获取全站文章统计数据失败: %v", err)
 		response.Error(c, http.StatusInternalServerError, "获取统计数据失败", err)
 		return
 	}
