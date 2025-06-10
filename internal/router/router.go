@@ -40,6 +40,12 @@ func Setup(r *gin.Engine) {
 	// 图片相关路由
 	setupImageRoutes(api)
 
+	// WebSocket相关路由
+	setupWebSocketRoutes(api)
+
+	// 通知相关路由
+	setupNotificationRoutes(api)
+
 	// 阅读历史相关路由
 	setupReadingHistoryRoutes(api)
 
@@ -314,26 +320,6 @@ func setupImageRoutes(api *gin.RouterGroup) {
 	}
 }
 
-// func setupNotificationRoutes(api *gin.RouterGroup) {
-//     notificationApi := controller.NewNotificationApi()
-//     // 需要认证的路由
-//     authNotificationRoutes := api.Group("/notifications", middleware.JWTAuth())
-//     {
-//         // 获取用户通知列表
-//         authNotificationRoutes.GET("", notificationApi.List)
-//         // 获取未读通知数量
-//         authNotificationRoutes.GET("/unread-count", notificationApi.GetUnreadCount)
-//         // 标记通知为已读
-//         authNotificationRoutes.PUT("/:id/read", notificationApi.MarkAsRead)
-//         // 标记所有通知为已读
-//         authNotificationRoutes.PUT("/read-all", notificationApi.MarkAllAsRead)
-//         // 删除通知
-//         authNotificationRoutes.DELETE("/:id", notificationApi.Delete)
-//         // 批量删除通知
-//         authNotificationRoutes.POST("/batch-delete", notificationApi.BatchDelete)
-//     }
-// }
-
 // func setupSettingRoutes(api *gin.RouterGroup) {
 //     settingApi := controller.NewSettingApi()
 //     // 公开路由
@@ -389,11 +375,52 @@ func setupReadingHistoryRoutes(api *gin.RouterGroup) {
 }
 
 // setupRSSRoutes 设置RSS相关路由
-func setupRSSRoutes(api *gin.RouterGroup) {
-	rssApi := controller.NewRSSApi()
+// func setupRSSRoutes(api *gin.RouterGroup) {
+// 	rssApi := controller.NewRSSApi()
 
-	// RSS订阅路由（公开接口）
-	api.GET("/rss", rssApi.GetRSSFeed)
-	// 获取RSS订阅链接
-	api.GET("/rss/url", rssApi.GetRSSURL)
+// 	// RSS订阅路由（公开接口）
+// 	api.GET("/rss", rssApi.GetRSSFeed)
+// 	// 获取RSS订阅链接
+// 	api.GET("/rss/url", rssApi.GetRSSURL)
+// }
+
+// setupWebSocketRoutes 设置WebSocket相关路由
+func setupWebSocketRoutes(api *gin.RouterGroup) {
+	wsApi := controller.NewWebSocketApi()
+
+	// WebSocket连接路由（需要认证）
+	wsRoutes := api.Group("/ws", middleware.JWTAuth())
+	{
+		// WebSocket连接
+		wsRoutes.GET("/connect", wsApi.HandleWebSocket)
+	}
+
+	// 管理员路由
+	adminWSRoutes := api.Group("/ws", middleware.AdminAuth())
+	{
+		// 获取WebSocket统计信息
+		adminWSRoutes.GET("/stats", wsApi.GetWebSocketStats)
+	}
+}
+
+// setupNotificationRoutes 设置通知相关路由
+func setupNotificationRoutes(api *gin.RouterGroup) {
+	wsApi := controller.NewWebSocketApi()
+
+	// 需要认证的路由
+	authNotificationRoutes := api.Group("/notifications", middleware.JWTAuth())
+	{
+		// 获取用户通知列表
+		authNotificationRoutes.GET("", wsApi.GetNotifications)
+		// 获取未读通知数量
+		authNotificationRoutes.GET("/unread-count", wsApi.GetUnreadCount)
+		// 标记通知为已读
+		authNotificationRoutes.PUT("/:id/read", wsApi.MarkAsRead)
+		// 标记所有通知为已读
+		authNotificationRoutes.PUT("/read-all", wsApi.MarkAllAsRead)
+		// 删除通知
+		authNotificationRoutes.DELETE("/:id", wsApi.DeleteNotification)
+		// 批量删除通知
+		authNotificationRoutes.POST("/batch-delete", wsApi.BatchDeleteNotifications)
+	}
 }

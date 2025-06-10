@@ -112,6 +112,9 @@ func (s *CommentService) Create(userID uint, req *dto.CommentCreateRequest) (*mo
 		return nil, err
 	}
 
+	// 异步创建通知
+	go s.createCommentNotification(userID, comment, &article)
+
 	return comment, nil
 }
 
@@ -302,6 +305,9 @@ func (s *CommentService) Like(userID uint, commentID uint) error {
 				Error; err != nil {
 				return err
 			}
+			
+			// 异步创建点赞通知
+			go s.createCommentLikeNotification(userID, &comment)
 		}
 
 		return nil
@@ -564,22 +570,123 @@ func (s *CommentService) FilterContent(content string) string {
 
 // GetNotifications 获取评论通知
 func (s *CommentService) GetNotifications(userID uint, req *dto.CommentNotificationListRequest) (*dto.CommentNotificationListResponse, error) {
-	// 简化版本，返回空结果
+	notificationService := NewNotificationService()
+	
+	// 转换请求参数
+	notifyReq := &dto.NotificationListRequest{
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		Type:     "comment", // 只获取评论相关通知
+	}
+	if req.IsRead != nil {
+		notifyReq.IsRead = req.IsRead
+	}
+
+	notifications, err := notificationService.GetUserNotifications(userID, notifyReq)
+	if err != nil {
+		return nil, fmt.Errorf("获取评论通知失败: %w", err)
+	}
+
+	// 转换为评论通知响应格式
+	list := make([]dto.CommentNotificationResponse, 0, len(notifications.List))
+	for _, notification := range notifications.List {
+		if notification.Article != nil && notification.Comment != nil {
+			commentNotify := dto.CommentNotificationResponse{
+				ID:           notification.ID,
+				ArticleID:    notification.Article.ID,
+				ArticleTitle: notification.Article.Title,
+				CommentID:    notification.Comment.ID,
+				Content:      notification.Comment.Content,
+				CreatedAt:    notification.CreatedAt,
+				IsRead:       notification.IsRead,
+			}
+			
+			if notification.Sender != nil {
+				commentNotify.UserID = notification.Sender.ID
+				commentNotify.User = dto.CommentUserInfo{
+					ID:       notification.Sender.ID,
+					Username: notification.Sender.Username,
+					Nickname: notification.Sender.Nickname,
+					Avatar:   notification.Sender.Avatar,
+				}
+			}
+			
+			list = append(list, commentNotify)
+		}
+	}
+
 	return &dto.CommentNotificationListResponse{
-		Total:       0,
-		UnreadCount: 0,
-		List:        []dto.CommentNotificationResponse{},
+		Total:       notifications.Total,
+		UnreadCount: notifications.UnreadCount,
+		List:        list,
 	}, nil
 }
 
 // MarkNotificationAsRead 标记评论通知为已读
 func (s *CommentService) MarkNotificationAsRead(userID uint, notificationID uint) error {
-	// 简化版本，仅返回nil
-	return nil
+	notificationService := NewNotificationService()
+	return notificationService.MarkAsRead(userID, notificationID)
 }
 
 // MarkAllNotificationsAsRead 标记所有评论通知为已读
 func (s *CommentService) MarkAllNotificationsAsRead(userID uint) error {
-	// 简化版本，仅返回nil
-	return nil
+	notificationService := NewNotificationService()
+	return notificationService.MarkAllAsRead(userID)
+}
+
+// createCommentNotification 创建评论通知
+func (s *CommentService) createCommentNotification(senderID uint, comment *model.Comment, article *model.Article) {
+	notificationService := NewNotificationService()
+	
+	// 如果是回复评论，通知父评论作者
+	if comment.ParentID != nil {
+		var parentComment model.Comment
+		if err := s.db.Preload("User").First(&parentComment, *comment.ParentID).Error; err == nil {
+			// 回复通知
+			notificationService.CreateCommentReplyNotification(
+				senderID, 
+				parentComment.UserID, 
+				article.ID, 
+				comment.ID, 
+				article.Title,
+			)
+		}
+	}
+	
+	// 通知文章作者（如果不是自己评论自己的文章，且不是回复）
+	if article.AuthorID != senderID && comment.ParentID == nil {
+		notificationService.CreateCommentNotification(
+			senderID, 
+			article.AuthorID, 
+			article.ID, 
+			comment.ID, 
+			article.Title,
+		)
+	}
+}
+
+// createCommentLikeNotification 创建评论点赞通知
+func (s *CommentService) createCommentLikeNotification(senderID uint, comment *model.Comment) {
+	// 不给自己发通知
+	if senderID == comment.UserID {
+		return
+	}
+	
+	notificationService := NewNotificationService()
+	
+	// 获取文章信息
+	var article model.Article
+	if err := s.db.Select("id, title, author_id").First(&article, comment.ArticleID).Error; err != nil {
+		s.logger.Warnf("获取文章信息失败: %v", err)
+		return
+	}
+	
+	// 创建评论点赞通知
+	notificationService.CreateCommentLikeNotification(
+		senderID,
+		comment.UserID,
+		article.ID,
+		comment.ID,
+		article.Title,
+	)
 }

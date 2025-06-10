@@ -398,8 +398,14 @@ func (s *UserService) FollowUser(followerID, followedID uint) error {
 		return err
 	}
 
-	// 创建通知
-	s.createFollowNotification(followerID, followedID)
+	// 异步创建通知
+	go func() {
+		notificationService := NewNotificationService()
+		var follower model.User
+		if err := s.db.Select("nickname").First(&follower, followerID).Error; err == nil {
+			notificationService.CreateFollowNotification(followerID, followedID, follower.Nickname)
+		}
+	}()
 
 	return nil
 }

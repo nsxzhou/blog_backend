@@ -16,6 +16,7 @@ import (
 	"github.com/nsxzhou1114/blog-api/internal/model"
 	"github.com/nsxzhou1114/blog-api/internal/router"
 	"github.com/nsxzhou1114/blog-api/pkg/cache"
+	"github.com/nsxzhou1114/blog-api/pkg/websocket"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -93,6 +94,10 @@ func initializeSystem() error {
 	if err := cache.InitializeCache(database.GetRedis(), database.GetDB()); err != nil {
 		return fmt.Errorf("缓存初始化失败: %v", err)
 	}
+
+	// 初始化WebSocket管理器
+	websocketManager := websocket.GetManager()
+	websocketManager.Initialize(database.GetRedis())
 
 	return nil
 }

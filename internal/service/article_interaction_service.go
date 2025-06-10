@@ -72,9 +72,12 @@ func (s *ArticleInteractionService) LikeArticle(userID, articleID uint) error {
 			return err
 		}
 
-		// 创建通知（如果点赞的不是自己的文章）
+		// 异步创建通知（如果点赞的不是自己的文章）
 		if article.AuthorID != userID {
-			return s.createNotification(tx, userID, article.AuthorID, articleID, "article_like", "点赞了你的文章")
+			go func() {
+				notificationService := NewNotificationService()
+				notificationService.CreateArticleLikeNotification(userID, article.AuthorID, articleID, article.Title)
+			}()
 		}
 		return nil
 	})
@@ -116,9 +119,12 @@ func (s *ArticleInteractionService) FavoriteArticle(userID, articleID uint) erro
 			return err
 		}
 
-		// 创建通知（如果收藏的不是自己的文章）
+		// 异步创建通知（如果收藏的不是自己的文章）
 		if article.AuthorID != userID {
-			return s.createNotification(tx, userID, article.AuthorID, articleID, "article_favorite", "收藏了你的文章")
+			go func() {
+				notificationService := NewNotificationService()
+				notificationService.CreateArticleFavoriteNotification(userID, article.AuthorID, articleID, article.Title)
+			}()
 		}
 		return nil
 	})
