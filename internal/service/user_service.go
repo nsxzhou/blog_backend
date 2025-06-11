@@ -931,6 +931,7 @@ func (s *UserService) getQQUserInfo(accessToken, openID string) (*QQUserInfo, er
 // createUserFromQQ 从QQ信息创建用户
 func (s *UserService) createUserFromQQ(openID string, qqUserInfo *QQUserInfo, clientIP string) (model.User, error) {
 	user := model.User{
+		Email:                fmt.Sprintf("%s@temp.example.com", qqUserInfo.Nickname), 
 		Username:             qqUserInfo.Nickname,
 		Password:             s.generateRandomString(32), // 随机密码，QQ用户无法使用密码登录
 		Nickname:             qqUserInfo.Nickname,
