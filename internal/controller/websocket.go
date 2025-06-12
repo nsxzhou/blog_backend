@@ -203,19 +203,3 @@ func (api *WebSocketApi) GetWebSocketStats(c *gin.Context) {
 	stats := api.websocketManager.GetStats()
 	response.Success(c, "获取成功", stats)
 }
-
-// GetWebSocketHealth 获取WebSocket健康状态（管理员）
-func (api *WebSocketApi) GetWebSocketHealth(c *gin.Context) {
-	health := api.websocketManager.GetHealthStatus()
-	response.Success(c, "获取成功", health)
-}
-
-// TestWebSocketConnection 测试WebSocket连接（管理员）
-func (api *WebSocketApi) TestWebSocketConnection(c *gin.Context) {
-	if err := api.websocketManager.TestConnection(); err != nil {
-		api.logger.Errorf("WebSocket连接测试失败: %v", err)
-		response.Error(c, http.StatusInternalServerError, "连接测试失败", err)
-		return
-	}
-	response.Success(c, "连接测试成功", nil)
-}

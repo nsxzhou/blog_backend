@@ -14,33 +14,7 @@ func Setup(r *gin.Engine) {
 	if cfg.Image.LocalEnabled {
 		// 提供静态文件服务，将 /uploads/images 路径映射到本地存储目录
 		r.Static("/uploads/images", cfg.Image.Upload.Local.UploadPath)
-
-		// 为了兼容性，也提供 /images 路径的访问方式
-		r.Static("/images", cfg.Image.Upload.Local.UploadPath)
 	}
-
-	// 添加CORS中间件（修复WebSocket跨域问题）
-	r.Use(func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		
-		// 设置允许的源，可以根据环境配置调整
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Sec-WebSocket-Extensions")
-		c.Header("Access-Control-Allow-Credentials", "true")
-		
-		// WebSocket特定头部
-		if c.GetHeader("Upgrade") == "websocket" {
-			c.Header("Access-Control-Allow-Origin", origin)
-		}
-		
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		
-		c.Next()
-	})
 
 	// API 路由组
 	api := r.Group("/api")
@@ -423,10 +397,6 @@ func setupWebSocketRoutes(api *gin.RouterGroup) {
 	{
 		// 获取WebSocket统计信息
 		adminWSRoutes.GET("/stats", wsApi.GetWebSocketStats)
-		// 获取WebSocket健康状态
-		adminWSRoutes.GET("/health", wsApi.GetWebSocketHealth)
-		// 测试WebSocket连接
-		adminWSRoutes.POST("/test", wsApi.TestWebSocketConnection)
 	}
 }
 

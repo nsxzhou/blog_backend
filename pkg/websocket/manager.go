@@ -19,7 +19,7 @@ import (
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
-		
+	
 		// 记录连接来源，便于调试
 		if manager != nil && manager.logger != nil {
 			manager.logger.Debugf("WebSocket连接来源: %s, User-Agent: %s", origin, r.Header.Get("User-Agent"))
@@ -29,13 +29,6 @@ var upgrader = websocket.Upgrader{
 		// 生产环境可以根据需要限制特定域名
 		return true
 	},
-	// 增加缓冲区大小，提升性能
-	ReadBufferSize:  4096,  // 增加读缓冲区
-	WriteBufferSize: 4096,  // 增加写缓冲区
-	// 启用压缩
-	EnableCompression: true,
-	// 设置握手超时
-	HandshakeTimeout: 10 * time.Second,
 }
 
 // Client WebSocket客户端
@@ -46,8 +39,7 @@ type Client struct {
 	Manager    *Manager
 	LastActive time.Time
 	closed     bool
-	closeMutex sync.RWMutex  // 改为读写锁，提升性能
-	// 新增连接ID，用于调试和统计
+	closeMutex sync.RWMutex 
 	ConnID     string
 	ConnTime   time.Time
 }
@@ -62,11 +54,9 @@ type Manager struct {
 	redis      *redis.Client
 	logger     *zap.SugaredLogger
 	ctx        context.Context
-	cancel     context.CancelFunc  // 新增：用于优雅关闭
-	// 新增：统计信息
+	cancel     context.CancelFunc  
 	stats      *Stats
 	statsMutex sync.RWMutex
-	// 新增：消息批量处理
 	messageBatch chan *BatchMessage
 }
 
@@ -105,10 +95,10 @@ func GetManager() *Manager {
 		ctx, cancel := context.WithCancel(context.Background())
 		manager = &Manager{
 			clients:      make(map[uint]*Client),
-			register:     make(chan *Client, 512),    // 增加缓冲区
-			unregister:   make(chan *Client, 512),    // 增加缓冲区
-			broadcast:    make(chan []byte, 1024),    // 增加缓冲区
-			messageBatch: make(chan *BatchMessage, 256), // 新增批量消息通道
+			register:     make(chan *Client, 512),    
+			unregister:   make(chan *Client, 512),    
+			broadcast:    make(chan []byte, 1024),    
+			messageBatch: make(chan *BatchMessage, 256), 
 			ctx:          ctx,
 			cancel:       cancel,
 			logger:       logger.GetSugaredLogger(),
@@ -124,7 +114,7 @@ func GetManager() *Manager {
 func (m *Manager) Initialize(redisClient *redis.Client) {
 	m.redis = redisClient
 	go m.run()
-	go m.processBatchMessages() // 新增：批量消息处理
+	go m.processBatchMessages() 
 }
 
 // Shutdown 优雅关闭管理器
@@ -154,15 +144,15 @@ func (m *Manager) Shutdown() {
 		}(client)
 	}
 	
-	// 等待所有连接关闭完成，最多等待10秒
-	done := make(chan struct{})
+	// 使用带超时的通道等待连接关闭
+	waitChan := make(chan struct{})
 	go func() {
 		wg.Wait()
-		close(done)
+		close(waitChan)
 	}()
 	
 	select {
-	case <-done:
+	case <-waitChan:
 		m.logger.Info("所有WebSocket连接已关闭")
 	case <-time.After(10 * time.Second):
 		m.logger.Warn("关闭WebSocket连接超时")
@@ -230,7 +220,14 @@ func (m *Manager) processBatchMessages() {
 	batchTicker := time.NewTicker(100 * time.Millisecond) // 100ms批量处理一次
 	defer batchTicker.Stop()
 	
-	var messageBatch []*BatchMessage
+	messageBatch := make([]*BatchMessage, 0, 20) // 预分配容量
+	
+	processAndClear := func() {
+		if len(messageBatch) > 0 {
+			m.flushBatchMessages(messageBatch)
+			messageBatch = messageBatch[:0] // 复用底层数组
+		}
+	}
 	
 	for {
 		select {
@@ -240,15 +237,11 @@ func (m *Manager) processBatchMessages() {
 			messageBatch = append(messageBatch, msg)
 			// 如果批量达到一定数量，立即处理
 			if len(messageBatch) >= 10 {
-				m.flushBatchMessages(messageBatch)
-				messageBatch = messageBatch[:0]
+				processAndClear()
 			}
 		case <-batchTicker.C:
 			// 定时处理批量消息
-			if len(messageBatch) > 0 {
-				m.flushBatchMessages(messageBatch)
-				messageBatch = messageBatch[:0]
-			}
+			processAndClear()
 		}
 	}
 }
@@ -277,7 +270,7 @@ func (m *Manager) flushBatchMessages(messages []*BatchMessage) {
 	}
 }
 
-// registerClient 注册客户端（优化版）
+// registerClient 注册客户端
 func (m *Manager) registerClient(client *Client) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -314,24 +307,7 @@ func (m *Manager) registerClient(client *Client) {
 	go m.sendOfflineMessages(client.UserID)
 }
 
-// isClientHealthy 检查客户端连接是否健康（优化版）
-func (m *Manager) isClientHealthy(client *Client) bool {
-	client.closeMutex.RLock()
-	defer client.closeMutex.RUnlock()
-	
-	if client.closed {
-		return false
-	}
-	
-	// 检查连接是否在最近活跃
-	if time.Since(client.LastActive) > 3*time.Minute {
-		return false
-	}
-	
-	return true
-}
-
-// unregisterClient 注销客户端（优化版）
+// unregisterClient 注销客户端
 func (m *Manager) unregisterClient(client *Client) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -353,7 +329,7 @@ func (m *Manager) unregisterClient(client *Client) {
 	go m.safeCloseClient(client)
 }
 
-// broadcastToAll 广播消息给所有用户（优化版）
+// broadcastToAll 广播消息给所有用户
 func (m *Manager) broadcastToAll(message []byte) {
 	m.mutex.RLock()
 	userIDs := make([]uint, 0, len(m.clients))
@@ -379,7 +355,7 @@ func (m *Manager) broadcastToAll(message []byte) {
 	}
 }
 
-// SendToUser 发送消息给指定用户（优化版）
+// SendToUser 发送消息给指定用户
 func (m *Manager) SendToUser(userID uint, notification *model.Notification) error {
 	// 生成消息ID
 	messageID := fmt.Sprintf("%d_%d", userID, time.Now().UnixNano())
@@ -512,7 +488,7 @@ func (m *Manager) storeOfflineMessage(userID uint, notification *model.Notificat
 	return nil
 }
 
-// sendOfflineMessages 发送离线消息（优化版）
+// sendOfflineMessages 发送离线消息
 func (m *Manager) sendOfflineMessages(userID uint) {
 	if m.redis == nil {
 		return
@@ -583,11 +559,10 @@ func (m *Manager) sendOfflineMessages(userID uint) {
 	m.logger.Infof("用户 %d 离线消息已发送，共 %d 条", userID, len(messages))
 }
 
-// cleanupInactiveClients 清理不活跃的客户端（优化版）
+// cleanupInactiveClients 清理不活跃的客户端
 func (m *Manager) cleanupInactiveClients() {
 	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
+	
 	cutoff := time.Now().Add(-5 * time.Minute) // 增加超时时间到5分钟
 	var toRemove []*Client
 	
@@ -603,24 +578,20 @@ func (m *Manager) cleanupInactiveClients() {
 	}
 
 	// 更新统计信息
-	if len(toRemove) > 0 {
+	removeCount := len(toRemove)
+	if removeCount > 0 {
 		m.statsMutex.Lock()
 		m.stats.ActiveConnections = len(m.clients)
 		m.statsMutex.Unlock()
 		
-		m.logger.Infof("清理 %d 个不活跃连接", len(toRemove))
-		// 在锁外异步关闭客户端，避免阻塞管理器主循环
-		go func() {
-			var wg sync.WaitGroup
-			for _, client := range toRemove {
-				wg.Add(1)
-				go func(c *Client) {
-					defer wg.Done()
-					m.safeCloseClient(c)
-				}(client)
-			}
-			wg.Wait()
-		}()
+		m.logger.Infof("清理 %d 个不活跃连接", removeCount)
+	}
+	
+	m.mutex.Unlock()
+	
+	// 锁外关闭客户端
+	for _, client := range toRemove {
+		go m.safeCloseClient(client) // 直接并发关闭每个客户端，不需要额外的WaitGroup
 	}
 }
 
@@ -722,7 +693,7 @@ func (m *Manager) HandleWebSocket(c *gin.Context, userID uint) {
 	m.logger.Infof("用户 %d WebSocket连接处理程序已启动", userID)
 }
 
-// readPump 处理读取消息（完全重构版）
+// readPump 处理读取消息
 func (c *Client) readPump() {
 	defer func() {
 		// 确保连接被正确清理
@@ -740,31 +711,34 @@ func (c *Client) readPump() {
 	
 	// 设置pong处理器
 	c.Conn.SetPongHandler(func(string) error {
-		c.closeMutex.Lock()
-		if !c.closed {
+		c.closeMutex.RLock()
+		closed := c.closed
+		c.closeMutex.RUnlock()
+		
+		if !closed {
+			c.closeMutex.Lock()
 			c.LastActive = time.Now()
 			c.Conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+			c.closeMutex.Unlock()
 		}
-		c.closeMutex.Unlock()
 		return nil
 	})
 
 	// 消息读取循环
 	for {
-		// 检查context是否已取消
+		// 使用非阻塞方式检查context是否已取消
 		select {
 		case <-c.Manager.ctx.Done():
 			return
 		default:
 		}
 		
-		// 检查连接是否已关闭
 		c.closeMutex.RLock()
-		if c.closed {
-			c.closeMutex.RUnlock()
+		closed := c.closed
+		c.closeMutex.RUnlock()
+		if closed {
 			return
 		}
-		c.closeMutex.RUnlock()
 
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -777,19 +751,24 @@ func (c *Client) readPump() {
 		}
 		
 		// 更新活跃时间
-		c.closeMutex.Lock()
-		if !c.closed {
+		c.closeMutex.RLock()
+		closed = c.closed
+		c.closeMutex.RUnlock()
+		
+		if !closed {
+			c.closeMutex.Lock()
 			c.LastActive = time.Now()
+			c.closeMutex.Unlock()
+			
 			// 更新接收统计
 			c.Manager.statsMutex.Lock()
 			c.Manager.stats.MessagesReceived++
 			c.Manager.statsMutex.Unlock()
-		}
-		c.closeMutex.Unlock()
-		
-		// 处理客户端消息
-		if len(message) > 0 {
-			c.handleMessage(message)
+			
+			// 处理客户端消息
+			if len(message) > 0 {
+				c.handleMessage(message)
+			}
 		}
 	}
 }
@@ -807,34 +786,39 @@ func (c *Client) handleMessage(message []byte) {
 		return
 	}
 
-	switch msgType {
-	case "ping":
+	// 只处理特定类型的消息
+	if msgType == "ping" {
 		// 处理ping消息
 		response := NotificationMessage{
 			Type:      "pong",
 			Timestamp: time.Now().Unix(),
 		}
-		if responseData, err := json.Marshal(response); err == nil {
-			c.closeMutex.RLock()
-			if !c.closed {
-				select {
-				case c.Send <- responseData:
-				default:
-					// Send channel满了，忽略此消息
-				}
-			}
-			c.closeMutex.RUnlock()
+		responseData, err := json.Marshal(response)
+		if err != nil {
+			return
 		}
-	case "heartbeat":
+		
+		c.closeMutex.RLock()
+		closed := c.closed
+		c.closeMutex.RUnlock()
+		
+		if !closed {
+			select {
+			case c.Send <- responseData:
+			default:
+				// Send channel满了，忽略此消息
+			}
+		}
+	} else if msgType == "heartbeat" {
 		// 处理心跳消息，仅更新活跃时间即可
 		c.Manager.logger.Debugf("用户 %d 发送心跳消息", c.UserID)
-	default:
+	} else {
 		// 处理其他类型消息
 		c.Manager.logger.Debugf("用户 %d 发送未知类型消息: %s", c.UserID, msgType)
 	}
 }
 
-// writePump 处理写入消息（优化版）
+// writePump 处理写入消息
 func (c *Client) writePump() {
 	// 心跳间隔调整为60秒
 	ticker := time.NewTicker(60 * time.Second)
@@ -887,7 +871,7 @@ func (c *Client) writePump() {
 	}
 }
 
-// safeCloseClient 安全关闭客户端连接（完全重构版）
+// safeCloseClient 安全关闭客户端连接
 func (m *Manager) safeCloseClient(client *Client) {
 	client.closeMutex.Lock()
 	defer client.closeMutex.Unlock()
@@ -898,13 +882,7 @@ func (m *Manager) safeCloseClient(client *Client) {
 	
 	client.closed = true
 	
-	// 关闭Send channel，通知writePump退出
-	select {
-	case <-client.Send:
-		// channel已经被读空
-	default:
-		// channel还有数据，安全关闭
-	}
+	// 直接关闭Send channel，通知writePump退出
 	close(client.Send)
 	
 	// 关闭WebSocket连接
@@ -915,84 +893,4 @@ func (m *Manager) safeCloseClient(client *Client) {
 	
 	m.logger.Debugf("用户 %d 客户端连接已安全关闭，连接ID: %s, 连接时长: %v", 
 		client.UserID, client.ConnID, time.Since(client.ConnTime))
-}
-
-// TestConnection 测试WebSocket连接功能
-func (m *Manager) TestConnection() error {
-	m.logger.Info("开始WebSocket连接测试")
-	
-	// 检查基本组件
-	if m.redis == nil {
-		return fmt.Errorf("Redis客户端未初始化")
-	}
-	
-	if m.logger == nil {
-		return fmt.Errorf("日志组件未初始化")
-	}
-	
-	// 检查通道是否正常
-	testClient := &Client{
-		UserID:     9999,
-		Send:       make(chan []byte, 512),
-		Manager:    m,
-		LastActive: time.Now(),
-		closed:     false,
-		ConnID:     "test_connection",
-		ConnTime:   time.Now(),
-	}
-	
-	// 测试注册流程
-	select {
-	case m.register <- testClient:
-		m.logger.Info("WebSocket注册通道测试通过")
-	case <-time.After(1 * time.Second):
-		return fmt.Errorf("注册通道测试超时")
-	}
-	
-	// 等待注册完成
-	time.Sleep(100 * time.Millisecond)
-	
-	// 测试注销流程
-	select {
-	case m.unregister <- testClient:
-		m.logger.Info("WebSocket注销通道测试通过")
-	case <-time.After(1 * time.Second):
-		return fmt.Errorf("注销通道测试超时")
-	}
-	
-	// 等待注销完成
-	time.Sleep(100 * time.Millisecond)
-	
-	m.logger.Info("WebSocket连接测试完成")
-	return nil
-}
-
-// GetHealthStatus 获取WebSocket健康状态
-func (m *Manager) GetHealthStatus() map[string]interface{} {
-	m.mutex.RLock()
-	activeConnections := len(m.clients)
-	m.mutex.RUnlock()
-	
-	m.statsMutex.RLock()
-	stats := *m.stats
-	m.statsMutex.RUnlock()
-	
-	stats.ActiveConnections = activeConnections
-	
-	// 计算健康指标
-	uptime := time.Since(stats.LastRestart)
-	
-	return map[string]interface{}{
-		"status":              "healthy",
-		"active_connections":  stats.ActiveConnections,
-		"total_connections":   stats.TotalConnections,
-		"messages_sent":       stats.MessagesSent,
-		"messages_received":   stats.MessagesReceived,
-		"connection_errors":   stats.ConnectionErrors,
-		"uptime_seconds":      int64(uptime.Seconds()),
-		"uptime_human":        uptime.String(),
-		"error_rate":          float64(stats.ConnectionErrors) / float64(stats.TotalConnections+1),
-		"redis_connected":     m.redis != nil,
-		"last_restart":        stats.LastRestart,
-	}
 }
