@@ -31,7 +31,7 @@ func NewWebSocketApi() *WebSocketApi {
 	}
 }
 
-// HandleWebSocket 处理WebSocket连接（修复版）
+// HandleWebSocket 处理WebSocket连接
 func (api *WebSocketApi) HandleWebSocket(c *gin.Context) {
 	// 从查询参数获取token
 	token := c.Query("token")
