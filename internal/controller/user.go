@@ -60,7 +60,7 @@ func (api *UserApi) Login(c *gin.Context) {
 	user, tokenPair, err := api.userService.Login(&req)
 	if err != nil {
 		api.logger.Warnf("用户登录失败: %v", err)
-		response.Error(c, http.StatusUnauthorized, "登录失败", err)
+		response.Error(c, http.StatusInternalServerError, "登录失败", err)
 		return
 	}
 
