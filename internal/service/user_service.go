@@ -692,36 +692,10 @@ func (s *UserService) GetUserStats() (*dto.UserStatResponse, error) {
 	return stats, nil
 }
 
-// 私有辅助方法
-
-// createFollowNotification 创建关注通知
-func (s *UserService) createFollowNotification(followerID, followedID uint) {
-	var follower model.User
-	if err := s.db.Select("username").First(&follower, followerID).Error; err != nil {
-		return
-	}
-
-	notification := &model.Notification{
-		UserID:   followedID,
-		SenderID: &followerID,
-		Type:     "follow",
-		Content:  follower.Username + " 关注了你",
-		IsRead:   0,
-	}
-
-	s.db.Create(notification)
-}
-
 // generateResetToken 生成重置令牌
 func (s *UserService) generateResetToken() string {
 	// 这里应该生成安全的随机令牌，简化处理
 	return fmt.Sprintf("reset_%d_%d", time.Now().Unix(), time.Now().Nanosecond())
-}
-
-// generateVerificationToken 生成验证令牌
-func (s *UserService) generateVerificationToken() string {
-	// 这里应该生成安全的随机令牌，简化处理
-	return fmt.Sprintf("verify_%d_%d", time.Now().Unix(), time.Now().Nanosecond())
 }
 
 // GetQQLoginURL 获取QQ登录URL

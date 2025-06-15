@@ -94,10 +94,6 @@ func createAdminUser() {
 	email, _ := reader.ReadString('\n')
 	email = strings.TrimSpace(email)
 
-	fmt.Print("请输入管理员昵称: ")
-	nickname, _ := reader.ReadString('\n')
-	nickname = strings.TrimSpace(nickname)
-
 	fmt.Print("请输入管理员密码: ")
 	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -158,7 +154,6 @@ func createAdminUser() {
 	fmt.Printf("管理员用户创建成功！\n")
 	fmt.Printf("用户名: %s\n", username)
 	fmt.Printf("邮箱: %s\n", email)
-	fmt.Printf("昵称: %s\n", nickname)
 }
 
 // listUsers 列出用户
@@ -179,9 +174,9 @@ func listUsers() {
 		return
 	}
 
-	fmt.Printf("%-5s %-20s %-30s %-20s %-10s %-8s %-20s %-20s\n",
-		"ID", "用户名", "邮箱", "昵称", "角色", "状态", "创建时间", "最后登录")
-	fmt.Println(strings.Repeat("-", 140))
+	fmt.Printf("%-5s %-20s %-30s %-20s %-10s %-8s %-20s\n",
+		"ID", "用户名", "邮箱", "角色", "状态", "创建时间", "最后登录")
+	fmt.Println(strings.Repeat("-", 100))
 
 	for _, user := range users {
 		status := "启用"
@@ -194,7 +189,7 @@ func listUsers() {
 			lastLogin = user.LastLoginAt.Format("2006-01-02 15:04")
 		}
 
-		fmt.Printf("%-5d %-20s %-30s %-20s %-10s %-8s %-20s %-20s\n",
+		fmt.Printf("%-5d %-20s %-30s %-20s %-10s %-8s %-20s\n",
 			user.ID, user.Username, user.Email,
 			user.Role, status, user.CreatedAt.Format("2006-01-02 15:04"), lastLogin)
 	}

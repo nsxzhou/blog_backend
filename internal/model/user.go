@@ -7,7 +7,7 @@ import (
 // User 用户模型
 type User struct {
 	Base
-	Username        string    `gorm:"type:varchar(50);not null;uniqueIndex" json:"username"`
+	Username        string    `gorm:"type:varchar(50);not null;" json:"username"`
 	Password        string    `gorm:"type:varchar(100);not null" json:"-"`
 	Email           string    `gorm:"type:varchar(100)" json:"email"`
 	IsEmailVerified int       `gorm:"type:tinyint(1);not null;default:0" json:"is_email_verified"` // 0=未验证 1=已验证
@@ -19,7 +19,7 @@ type User struct {
 	LastLoginIP     string    `gorm:"type:varchar(50)" json:"last_login_ip"`
 	Phone           string    `gorm:"type:varchar(20)" json:"phone"`
 	IsPhoneVerified int       `gorm:"type:tinyint(1);not null;default:0" json:"is_phone_verified"` // 0=未验证 1=已验证
-	QQOpenID        string    `gorm:"type:varchar(100);index" json:"-"`                            // QQ登录OpenID
+	QQOpenID        string    `gorm:"type:varchar(100);" json:"-"`                                 // QQ登录OpenID
 }
 
 // TableName 指定表名
