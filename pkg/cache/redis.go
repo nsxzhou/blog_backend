@@ -27,12 +27,12 @@ func (r *RedisCache) Get(ctx context.Context, key string) (string, error) {
 }
 
 // Set 设置缓存
-func (r *RedisCache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func (r *RedisCache) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
 	return r.client.Set(ctx, key, value, expiration).Err()
 }
 
 // SetNX 设置缓存（不存在时才设置）
-func (r *RedisCache) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
+func (r *RedisCache) SetNX(ctx context.Context, key string, value any, expiration time.Duration) (bool, error) {
 	return r.client.SetNX(ctx, key, value, expiration).Result()
 }
 
@@ -63,21 +63,21 @@ func (r *RedisCache) GetJSON(ctx context.Context, key string, dest interface{}) 
 	if err != nil {
 		return err
 	}
-	
+
 	return json.Unmarshal([]byte(data), dest)
 }
 
 // SetJSON 序列化为JSON并设置缓存
-func (r *RedisCache) SetJSON(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func (r *RedisCache) SetJSON(ctx context.Context, key string, value any, expiration time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("marshal json failed: %w", err)
 	}
-	
+
 	return r.client.Set(ctx, key, data, expiration).Err()
 }
 
 // Close 关闭连接
 func (r *RedisCache) Close() error {
 	return r.client.Close()
-} 
+}

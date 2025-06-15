@@ -97,7 +97,7 @@ func initializeSystem() error {
 
 	// 初始化WebSocket管理器
 	websocketManager := websocket.GetManager()
-	websocketManager.Initialize(database.GetRedis())
+	websocketManager.Initialize(websocket.NewRedisMessageStore(database.GetRedis()))
 
 	return nil
 }

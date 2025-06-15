@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -97,7 +98,7 @@ func (s *NotificationService) createNotificationSync(senderID, receiverID uint, 
 	}
 
 	// 实时推送通知
-	if err := s.websocketManager.SendToUser(receiverID, notification); err != nil {
+	if err := s.websocketManager.SendToUser(context.Background(), receiverID, notification); err != nil {
 		s.logger.Warnf("推送通知失败: %v", err)
 	}
 

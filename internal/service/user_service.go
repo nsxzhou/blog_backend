@@ -80,7 +80,6 @@ func (s *UserService) Register(req *dto.RegisterRequest) (*model.User, *auth.Tok
 		ResetPasswordExpires: time.Now(), // 设置密码重置过期时间的初始值为当前时间
 	}
 
-
 	if err := s.db.Create(user).Error; err != nil {
 		return nil, nil, err
 	}
@@ -511,7 +510,7 @@ func (s *UserService) GetUserList(req *dto.UserListRequest) (*dto.UserListRespon
 
 	// 条件过滤
 	if req.Keyword != "" {
-		query = query.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ?", 
+		query = query.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ?",
 			"%"+req.Keyword+"%", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
 	}
 	if req.Role != "" {
@@ -640,7 +639,7 @@ func (s *UserService) ForgotPassword(email string) error {
 // ResetPassword 重置密码
 func (s *UserService) ResetPassword(token, newPassword string) error {
 	var user model.User
-	if err := s.db.Where("reset_password_token = ? AND reset_password_expires > ?", 
+	if err := s.db.Where("reset_password_token = ? AND reset_password_expires > ?",
 		token, time.Now()).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("重置令牌无效或已过期")
@@ -656,9 +655,9 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 
 	// 更新密码并清除重置令牌
 	return s.db.Model(&user).Updates(map[string]interface{}{
-		"password":                string(hashedPassword),
-		"reset_password_token":    "",
-		"reset_password_expires":  time.Now(),
+		"password":               string(hashedPassword),
+		"reset_password_token":   "",
+		"reset_password_expires": time.Now(),
 	}).Error
 }
 
@@ -715,14 +714,14 @@ func (s *UserService) GetUserStats() (*dto.UserStatResponse, error) {
 	s.db.Model(&model.User{}).Count(&stats.TotalUsers)
 
 	// 活跃用户数（30天内登录）
-	thirtyDaysAgo := time.Now().AddDate(0, 0, -7	)
+	thirtyDaysAgo := time.Now().AddDate(0, 0, -7)
 	s.db.Model(&model.User{}).Where("last_login_at > ?", thirtyDaysAgo).Count(&stats.ActiveUsers)
 
 	// 本月新用户
 	currentMonth := time.Now().Format("2006-01")
 	s.db.Model(&model.User{}).Where("DATE_FORMAT(created_at, '%Y-%m') = ?", currentMonth).Count(&stats.NewUsers)
 
-	// 管理员用户	
+	// 管理员用户
 	s.db.Model(&model.User{}).Where("role = 'admin'").Count(&stats.AdminUsers)
 
 	// 禁用用户
@@ -757,7 +756,7 @@ func (s *UserService) generateResetToken() string {
 	return fmt.Sprintf("reset_%d_%d", time.Now().Unix(), time.Now().Nanosecond())
 }
 
-// generateVerificationToken 生成验证令牌  
+// generateVerificationToken 生成验证令牌
 func (s *UserService) generateVerificationToken() string {
 	// 这里应该生成安全的随机令牌，简化处理
 	return fmt.Sprintf("verify_%d_%d", time.Now().Unix(), time.Now().Nanosecond())
@@ -931,7 +930,7 @@ func (s *UserService) getQQUserInfo(accessToken, openID string) (*QQUserInfo, er
 // createUserFromQQ 从QQ信息创建用户
 func (s *UserService) createUserFromQQ(openID string, qqUserInfo *QQUserInfo, clientIP string) (model.User, error) {
 	user := model.User{
-		Email:                fmt.Sprintf("%s@temp.example.com", qqUserInfo.Nickname), 
+		Email:                fmt.Sprintf("%s@temp.example.com", qqUserInfo.Nickname),
 		Username:             qqUserInfo.Nickname,
 		Password:             s.generateRandomString(32), // 随机密码，QQ用户无法使用密码登录
 		Nickname:             qqUserInfo.Nickname,
@@ -996,4 +995,3 @@ func (s *UserService) extractOpenID(response string) string {
 
 	return ""
 }
-

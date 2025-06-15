@@ -391,13 +391,6 @@ func setupWebSocketRoutes(api *gin.RouterGroup) {
 		// WebSocket连接
 		wsRoutes.GET("/connect", wsApi.HandleWebSocket)
 	}
-
-	// 管理员路由
-	adminWSRoutes := api.Group("/ws", middleware.AdminAuth())
-	{
-		// 获取WebSocket统计信息
-		adminWSRoutes.GET("/stats", wsApi.GetWebSocketStats)
-	}
 }
 
 // setupNotificationRoutes 设置通知相关路由

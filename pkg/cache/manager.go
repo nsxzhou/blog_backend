@@ -10,11 +10,11 @@ import (
 
 // Manager 缓存管理器
 type Manager struct {
-	cache          Cache
-	bloomManager   *BloomFilterManager
-	articleCache   *ArticleCacheService
-	mutex          sync.RWMutex
-	initialized    bool
+	cache        Cache
+	bloomManager *BloomFilterManager
+	articleCache *ArticleCacheService
+	mutex        sync.RWMutex
+	initialized  bool
 }
 
 var (
@@ -34,26 +34,26 @@ func GetManager() *Manager {
 func (m *Manager) Initialize(redisClient *redis.Client) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	
+
 	if m.initialized {
 		return nil
 	}
-	
+
 	// 创建Redis缓存实例
 	m.cache = NewRedisCache(redisClient)
-	
+
 	// 创建布隆过滤器管理器
 	m.bloomManager = NewBloomFilterManager(redisClient)
-	
+
 	// 初始化布隆过滤器（从Redis加载）
 	ctx := context.Background()
 	if err := m.bloomManager.InitializeFilters(ctx); err != nil {
 		return fmt.Errorf("initialize bloom filters failed: %w", err)
 	}
-	
+
 	// 创建文章缓存服务
 	m.articleCache = NewArticleCacheService(m.cache, m.bloomManager.GetArticleFilter())
-	
+
 	m.initialized = true
 	return nil
 }
@@ -83,11 +83,11 @@ func (m *Manager) GetBloomManager() *BloomFilterManager {
 func (m *Manager) SaveBloomFilters(ctx context.Context) error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	
+
 	if !m.initialized {
 		return fmt.Errorf("cache manager not initialized")
 	}
-	
+
 	return m.bloomManager.SaveFilters(ctx)
 }
 
@@ -102,23 +102,23 @@ func (m *Manager) IsInitialized() bool {
 func (m *Manager) Close() error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	
+
 	if !m.initialized {
 		return nil
 	}
-	
+
 	// 保存布隆过滤器
 	ctx := context.Background()
 	if err := m.bloomManager.SaveFilters(ctx); err != nil {
 		// 记录错误但不阻止关闭过程
 		fmt.Printf("Failed to save bloom filters: %v\n", err)
 	}
-	
+
 	// 关闭缓存连接
 	if err := m.cache.Close(); err != nil {
 		return fmt.Errorf("close cache failed: %w", err)
 	}
-	
+
 	m.initialized = false
 	return nil
 }
@@ -127,10 +127,10 @@ func (m *Manager) Close() error {
 func (m *Manager) WarmUpArticleBloomFilter(ctx context.Context, articleIDs []uint) error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	
+
 	if !m.initialized {
 		return fmt.Errorf("cache manager not initialized")
 	}
-	
+
 	return m.articleCache.BatchAddArticlesToBloomFilter(ctx, articleIDs)
-} 
+}

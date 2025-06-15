@@ -29,12 +29,12 @@ func (a *ArticleCacheService) GetArticleDetail(ctx context.Context, articleID ui
 	if err != nil {
 		return fmt.Errorf("check bloom filter failed: %w", err)
 	}
-	
+
 	// 如果布隆过滤器说不存在，直接返回不存在错误
 	if !exists {
 		return redis.Nil // 模拟缓存不存在
 	}
-	
+
 	// 从缓存获取文章详情
 	key := fmt.Sprintf(ArticleDetailKey, articleID)
 	return a.cache.GetJSON(ctx, key, dest)
@@ -46,7 +46,7 @@ func (a *ArticleCacheService) SetArticleDetail(ctx context.Context, articleID ui
 	if err := a.bloomFilter.Add(ctx, strconv.FormatUint(uint64(articleID), 10)); err != nil {
 		return fmt.Errorf("add to bloom filter failed: %w", err)
 	}
-	
+
 	// 设置缓存
 	key := fmt.Sprintf(ArticleDetailKey, articleID)
 	return a.cache.SetJSON(ctx, key, article, ArticleDetailExpiration)
@@ -75,7 +75,7 @@ func (a *ArticleCacheService) DeleteArticleListCache(ctx context.Context) error 
 	// 这里可以实现删除所有文章列表缓存的逻辑
 	// 由于Redis没有直接的模式删除，我们可以使用一个更简单的方法
 	// 或者维护一个缓存键的集合
-	
+
 	// 删除常用的分页缓存
 	keys := make([]string, 0)
 	for page := 1; page <= 10; page++ { // 删除前10页的缓存
@@ -84,11 +84,11 @@ func (a *ArticleCacheService) DeleteArticleListCache(ctx context.Context) error 
 			keys = append(keys, key)
 		}
 	}
-	
+
 	if len(keys) > 0 {
 		return a.cache.Delete(ctx, keys...)
 	}
-	
+
 	return nil
 }
 
@@ -113,11 +113,11 @@ func (a *ArticleCacheService) DeleteArticleCategoryListCache(ctx context.Context
 			keys = append(keys, key)
 		}
 	}
-	
+
 	if len(keys) > 0 {
 		return a.cache.Delete(ctx, keys...)
 	}
-	
+
 	return nil
 }
 
@@ -142,11 +142,11 @@ func (a *ArticleCacheService) DeleteArticleTagListCache(ctx context.Context, tag
 			keys = append(keys, key)
 		}
 	}
-	
+
 	if len(keys) > 0 {
 		return a.cache.Delete(ctx, keys...)
 	}
-	
+
 	return nil
 }
 
@@ -226,7 +226,7 @@ func (a *ArticleCacheService) BatchAddArticlesToBloomFilter(ctx context.Context,
 	for i, id := range articleIDs {
 		elements[i] = strconv.FormatUint(uint64(id), 10)
 	}
-	
+
 	return a.bloomFilter.BatchAdd(ctx, elements)
 }
 
@@ -236,25 +236,25 @@ func (a *ArticleCacheService) InvalidateArticleCaches(ctx context.Context, artic
 	if err := a.DeleteArticleDetail(ctx, articleID); err != nil {
 		return fmt.Errorf("delete article detail cache failed: %w", err)
 	}
-	
+
 	// 删除文章列表缓存
 	if err := a.DeleteArticleListCache(ctx); err != nil {
 		return fmt.Errorf("delete article list cache failed: %w", err)
 	}
-	
+
 	// 删除分类文章列表缓存
 	if categoryID > 0 {
 		if err := a.DeleteArticleCategoryListCache(ctx, categoryID); err != nil {
 			return fmt.Errorf("delete category article list cache failed: %w", err)
 		}
 	}
-	
+
 	// 删除标签文章列表缓存
 	for _, tagID := range tagIDs {
 		if err := a.DeleteArticleTagListCache(ctx, tagID); err != nil {
 			return fmt.Errorf("delete tag article list cache failed: %w", err)
 		}
 	}
-	
+
 	return nil
-} 
+}

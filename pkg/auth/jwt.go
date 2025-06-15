@@ -51,10 +51,10 @@ func GetJWTManager() *JWTManager {
 	if defaultJWTManager == nil {
 		// 根据配置选择黑名单类型，默认使用内存黑名单
 		blacklistType := RedisBlacklist
-		
+
 		// 这里可以从配置文件中读取黑名单类型
 		// 例如：blacklistType = BlacklistType(config.GlobalConfig.Auth.BlacklistType)
-		
+
 		defaultJWTManager = &JWTManager{
 			blacklist: GetBlacklist(blacklistType),
 		}

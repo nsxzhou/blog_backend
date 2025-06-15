@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"bufio"	
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -72,7 +72,7 @@ func init() {
 	userCmd.AddCommand(listUsersCmd)
 	userCmd.AddCommand(resetPasswordCmd)
 	userCmd.AddCommand(updateUserStatusCmd)
-	
+
 	// 将用户命令添加到根命令
 	rootCmd.AddCommand(userCmd)
 }
@@ -85,19 +85,19 @@ func createAdminUser() {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
-	
+
 	fmt.Print("请输入管理员用户名: ")
 	username, _ := reader.ReadString('\n')
 	username = strings.TrimSpace(username)
-	
+
 	fmt.Print("请输入管理员邮箱: ")
 	email, _ := reader.ReadString('\n')
 	email = strings.TrimSpace(email)
-	
+
 	fmt.Print("请输入管理员昵称: ")
 	nickname, _ := reader.ReadString('\n')
 	nickname = strings.TrimSpace(nickname)
-	
+
 	fmt.Print("请输入管理员密码: ")
 	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -106,7 +106,7 @@ func createAdminUser() {
 	}
 	password := string(passwordBytes)
 	fmt.Println() // 换行
-	
+
 	fmt.Print("请确认管理员密码: ")
 	confirmPasswordBytes, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -115,39 +115,39 @@ func createAdminUser() {
 	}
 	confirmPassword := string(confirmPasswordBytes)
 	fmt.Println() // 换行
-	
+
 	if password != confirmPassword {
 		fmt.Println("两次输入的密码不一致")
 		return
 	}
-	
+
 	// 密码加密
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		fmt.Printf("密码加密失败: %v\n", err)
 		return
 	}
-	
+
 	userService := service.NewUserService()
-	
+
 	// 检查用户名是否已存在
 	if _, err := userService.GetUserByUsername(username); err == nil {
 		fmt.Println("用户名已存在")
 		return
 	}
-	
+
 	// 创建管理员用户
 	user := &model.User{
-		Username: username,
-		Password: string(hashedPassword),
-		Email:    email,
-		Nickname: nickname,
-		Role:     "admin",
-		Status:   1,
-		IsVerified: 1,
-		IsPhoneVerified: 1,
-		LastLoginAt: time.Now(),
-		LastLoginIP: "127.0.0.1",	
+		Username:             username,
+		Password:             string(hashedPassword),
+		Email:                email,
+		Nickname:             nickname,
+		Role:                 "admin",
+		Status:               1,
+		IsVerified:           1,
+		IsPhoneVerified:      1,
+		LastLoginAt:          time.Now(),
+		LastLoginIP:          "127.0.0.1",
 		ResetPasswordExpires: time.Now(),
 	}
 
@@ -156,7 +156,7 @@ func createAdminUser() {
 		fmt.Printf("创建管理员用户失败: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("管理员用户创建成功！\n")
 	fmt.Printf("用户名: %s\n", username)
 	fmt.Printf("邮箱: %s\n", email)
@@ -172,7 +172,7 @@ func listUsers() {
 
 	db := database.GetDB()
 	var users []model.User
-	
+
 	if err := db.Select("id, username, email, nickname, role, status, created_at, last_login_at").
 		Order("created_at DESC").
 		Limit(50).
@@ -180,24 +180,24 @@ func listUsers() {
 		fmt.Printf("查询用户列表失败: %v\n", err)
 		return
 	}
-	
-	fmt.Printf("%-5s %-20s %-30s %-20s %-10s %-8s %-20s %-20s\n", 
+
+	fmt.Printf("%-5s %-20s %-30s %-20s %-10s %-8s %-20s %-20s\n",
 		"ID", "用户名", "邮箱", "昵称", "角色", "状态", "创建时间", "最后登录")
 	fmt.Println(strings.Repeat("-", 140))
-	
+
 	for _, user := range users {
 		status := "启用"
 		if user.Status == 0 {
 			status = "禁用"
 		}
-		
+
 		lastLogin := "从未登录"
 		if !user.LastLoginAt.IsZero() {
 			lastLogin = user.LastLoginAt.Format("2006-01-02 15:04")
 		}
-		
+
 		fmt.Printf("%-5d %-20s %-30s %-20s %-10s %-8s %-20s %-20s\n",
-			user.ID, user.Username, user.Email, user.Nickname, 
+			user.ID, user.Username, user.Email, user.Nickname,
 			user.Role, status, user.CreatedAt.Format("2006-01-02 15:04"), lastLogin)
 	}
 }
@@ -215,7 +215,7 @@ func resetUserPassword(username string) {
 		fmt.Printf("用户不存在: %v\n", err)
 		return
 	}
-	
+
 	fmt.Print("请输入新密码: ")
 	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -224,7 +224,7 @@ func resetUserPassword(username string) {
 	}
 	password := string(passwordBytes)
 	fmt.Println() // 换行
-	
+
 	fmt.Print("请确认新密码: ")
 	confirmPasswordBytes, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -233,18 +233,18 @@ func resetUserPassword(username string) {
 	}
 	confirmPassword := string(confirmPasswordBytes)
 	fmt.Println() // 换行
-	
+
 	if password != confirmPassword {
 		fmt.Println("两次输入的密码不一致")
 		return
 	}
-	
+
 	// 重置密码
 	if err := userService.ResetUserPassword(user.ID, password); err != nil {
 		fmt.Printf("重置密码失败: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("用户 %s 的密码重置成功！\n", username)
 }
 
@@ -260,23 +260,23 @@ func updateUserStatus(username, statusStr string) {
 		fmt.Println("状态值必须是 0 (禁用) 或 1 (启用)")
 		return
 	}
-	
+
 	userService := service.NewUserService()
 	user, err := userService.GetUserByUsername(username)
 	if err != nil {
 		fmt.Printf("用户不存在: %v\n", err)
 		return
 	}
-	
+
 	if err := userService.UpdateUserStatus(user.ID, status); err != nil {
 		fmt.Printf("更新用户状态失败: %v\n", err)
 		return
 	}
-	
+
 	statusText := "启用"
 	if status == 0 {
 		statusText = "禁用"
 	}
-	
+
 	fmt.Printf("用户 %s 的状态已更新为: %s\n", username, statusText)
-} 
+}

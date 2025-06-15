@@ -8,10 +8,10 @@ import (
 
 // Response 统一响应结构
 type Response struct {
-	Code    int         `json:"code"`           // 状态码
-	Message string      `json:"message"`        // 响应消息
-	Data    interface{} `json:"data"`           // 响应数据
-	Meta    interface{} `json:"meta,omitempty"` // 元数据，如分页信息
+	Code    int    `json:"code"`           // 状态码
+	Message string `json:"message"`        // 响应消息
+	Data    any    `json:"data"`           // 响应数据
+	Meta    any    `json:"meta,omitempty"` // 元数据，如分页信息
 }
 
 // PageMeta 分页元数据
@@ -31,7 +31,7 @@ func NewPageMeta(page, size int, total int64) PageMeta {
 }
 
 // Success 返回成功响应
-func Success(c *gin.Context, message string, data interface{}) {
+func Success(c *gin.Context, message string, data any) {
 	c.JSON(http.StatusOK, Response{
 		Code:    0,
 		Message: message,
@@ -40,7 +40,7 @@ func Success(c *gin.Context, message string, data interface{}) {
 }
 
 // SuccessPage 返回分页成功响应
-func SuccessPage(c *gin.Context, message string, data interface{}, page, size int, total int64) {
+func SuccessPage(c *gin.Context, message string, data any, page, size int, total int64) {
 	c.JSON(http.StatusOK, Response{
 		Code:    0,
 		Message: message,
@@ -93,6 +93,6 @@ func InternalServerError(c *gin.Context, message string, err error) {
 }
 
 // CustomError 返回自定义错误
-func CustomError(c *gin.Context, code int, message string, data interface{}) {
+func CustomError(c *gin.Context, code int, message string, data any) {
 	Error(c, code, message, nil)
 }

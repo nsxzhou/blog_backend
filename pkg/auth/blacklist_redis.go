@@ -62,8 +62,8 @@ func (b *RedisTokenBlacklist) AddToBlacklist(token string, expireAt time.Time) e
 	key := blacklistKeyPrefix + token
 	err := b.redis.Set(b.ctx, key, "1", duration).Err()
 	if err != nil {
-		logger.Error("添加令牌到Redis黑名单失败", 
-			zap.String("token", token), 
+		logger.Error("添加令牌到Redis黑名单失败",
+			zap.String("token", token),
 			zap.Error(err))
 		return fmt.Errorf("添加令牌到黑名单失败: %w", err)
 	}
@@ -71,15 +71,15 @@ func (b *RedisTokenBlacklist) AddToBlacklist(token string, expireAt time.Time) e
 	// 添加到本地缓存
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
-	
+
 	// 检查本地缓存大小，防止内存泄漏
 	if len(b.localCache) >= maxLocalCacheSize {
 		// 清理过期的本地缓存
 		b.cleanupLocalCacheUnsafe()
 	}
-	
+
 	b.localCache[token] = expireAt
-	
+
 	logger.Info("令牌已添加到黑名单", zap.String("token", token))
 	return nil
 }
@@ -90,7 +90,7 @@ func (b *RedisTokenBlacklist) IsBlacklisted(token string) bool {
 	b.mutex.RLock()
 	expireAt, exists := b.localCache[token]
 	b.mutex.RUnlock()
-	
+
 	if exists {
 		// 检查是否过期
 		if time.Now().After(expireAt) {
@@ -107,8 +107,8 @@ func (b *RedisTokenBlacklist) IsBlacklisted(token string) bool {
 	key := blacklistKeyPrefix + token
 	result, err := b.redis.Exists(b.ctx, key).Result()
 	if err != nil {
-		logger.Error("检查Redis黑名单失败", 
-			zap.String("token", token), 
+		logger.Error("检查Redis黑名单失败",
+			zap.String("token", token),
 			zap.Error(err))
 		// Redis异常时，仅依赖本地缓存
 		return false
@@ -174,7 +174,7 @@ func (b *RedisTokenBlacklist) cleanupTask() {
 		localCount := len(b.localCache)
 		b.mutex.RUnlock()
 
-		logger.Info("黑名单统计", 
+		logger.Info("黑名单统计",
 			zap.Int("redis_count", len(keys)),
 			zap.Int("local_cache_count", localCount))
 	}
@@ -220,4 +220,4 @@ func (b *RedisTokenBlacklist) Clear() error {
 
 	logger.Info("黑名单已清空")
 	return nil
-} 
+}

@@ -197,9 +197,3 @@ func (api *WebSocketApi) BatchDeleteNotifications(c *gin.Context) {
 
 	response.Success(c, "批量删除成功", nil)
 }
-
-// GetWebSocketStats 获取WebSocket统计信息（管理员）
-func (api *WebSocketApi) GetWebSocketStats(c *gin.Context) {
-	stats := api.websocketManager.GetStats()
-	response.Success(c, "获取成功", stats)
-}

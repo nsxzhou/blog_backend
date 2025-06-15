@@ -6,7 +6,7 @@ import "time"
 type BlacklistInterface interface {
 	// AddToBlacklist 将令牌添加到黑名单
 	AddToBlacklist(token string, expireAt time.Time) error
-	
+
 	// IsBlacklisted 检查令牌是否在黑名单中
 	IsBlacklisted(token string) bool
 }
@@ -33,4 +33,4 @@ func GetBlacklist(blacklistType BlacklistType) BlacklistInterface {
 	default:
 		return GetTokenBlacklist()
 	}
-} 
+}
