@@ -305,7 +305,7 @@ func (s *CommentService) Like(userID uint, commentID uint) error {
 				Error; err != nil {
 				return err
 			}
-			
+
 			// 异步创建点赞通知
 			go s.createCommentLikeNotification(userID, &comment)
 		}
@@ -449,6 +449,7 @@ func (s *CommentService) GenerateCommentResponseWithStatus(comment *model.Commen
 		CreatedAt:    comment.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:    comment.UpdatedAt.Format("2006-01-02 15:04:05"),
 		LikeCount:    comment.LikeCount,
+		LikedByMe:    false, // 默认为false
 	}
 
 	// 检查当前用户是否已点赞
@@ -461,7 +462,6 @@ func (s *CommentService) GenerateCommentResponseWithStatus(comment *model.Commen
 		resp.User = dto.CommentUserInfo{
 			ID:       comment.User.ID,
 			Username: comment.User.Username,
-			Nickname: comment.User.Nickname,
 			Avatar:   comment.User.Avatar,
 		}
 	} else {
@@ -471,7 +471,6 @@ func (s *CommentService) GenerateCommentResponseWithStatus(comment *model.Commen
 			resp.User = dto.CommentUserInfo{
 				ID:       user.ID,
 				Username: user.Username,
-				Nickname: user.Nickname,
 				Avatar:   user.Avatar,
 			}
 		}
@@ -481,66 +480,96 @@ func (s *CommentService) GenerateCommentResponseWithStatus(comment *model.Commen
 	if comment.ParentID != nil && *comment.ParentID > 0 {
 		var parent model.Comment
 		parentQuery := s.db.Preload("User")
-		
+
 		// 如果有状态筛选，也应用到父评论查询
 		if statusFilter != "" {
 			parentQuery = parentQuery.Where("status = ?", statusFilter)
 		}
-		
+
 		if err := parentQuery.First(&parent, *comment.ParentID).Error; err == nil {
-			resp.Parent = &dto.CommentBriefInfo{
+			parentResp := &dto.CommentResponse{
 				ID:           parent.ID,
 				Content:      parent.Content,
+				ArticleID:    parent.ArticleID,
 				UserID:       parent.UserID,
+				ParentID:     parent.ParentID,
 				Status:       parent.Status,
 				RejectReason: parent.RejectReason,
 				CreatedAt:    parent.CreatedAt.Format("2006-01-02 15:04:05"),
+				UpdatedAt:    parent.UpdatedAt.Format("2006-01-02 15:04:05"),
 				LikeCount:    parent.LikeCount,
+				LikedByMe:    false, // 默认为false
+			}
+
+			// 只有在用户已登录时才检查点赞状态
+			if currentUserID != nil {
+				parentResp.LikedByMe = s.hasUserLiked(*currentUserID, parent.ID)
 			}
 
 			if parent.User.ID > 0 {
-				resp.Parent.User = dto.CommentUserInfo{
+				parentResp.User = dto.CommentUserInfo{
 					ID:       parent.User.ID,
 					Username: parent.User.Username,
-					Nickname: parent.User.Nickname,
 					Avatar:   parent.User.Avatar,
 				}
 			}
+			resp.Parent = parentResp
 		}
 	}
 
 	// 获取子评论（回复）信息
 	var children []model.Comment
 	childQuery := s.db.Where("parent_id = ?", comment.ID)
-	
+
 	// 如果有状态筛选，应用到子评论查询
 	if statusFilter != "" {
 		childQuery = childQuery.Where("status = ?", statusFilter)
 	}
-	
+
 	if err := childQuery.Preload("User").
 		Order("created_at ASC").
 		Limit(5). // 只取前5条回复
 		Find(&children).Error; err == nil {
 
-		resp.Children = make([]dto.CommentBriefInfo, 0, len(children))
+		resp.Children = make([]dto.CommentResponse, 0, len(children))
 		for _, child := range children {
-			childInfo := dto.CommentBriefInfo{
+			childInfo := dto.CommentResponse{
 				ID:           child.ID,
 				Content:      child.Content,
+				ArticleID:    child.ArticleID,
 				UserID:       child.UserID,
+				ParentID:     child.ParentID,
 				Status:       child.Status,
 				RejectReason: child.RejectReason,
 				CreatedAt:    child.CreatedAt.Format("2006-01-02 15:04:05"),
+				UpdatedAt:    child.UpdatedAt.Format("2006-01-02 15:04:05"),
 				LikeCount:    child.LikeCount,
+				LikedByMe:    false, // 默认为false
 			}
 
+			// 只有在用户已登录时才检查点赞状态
+			if currentUserID != nil {
+				childInfo.LikedByMe = s.hasUserLiked(*currentUserID, child.ID)
+			}
+
+			// 检查用户信息是否有效
 			if child.User.ID > 0 {
 				childInfo.User = dto.CommentUserInfo{
 					ID:       child.User.ID,
 					Username: child.User.Username,
-					Nickname: child.User.Nickname,
 					Avatar:   child.User.Avatar,
+				}
+			} else {
+				// 如果User信息无效，手动查询
+				var user model.User
+				if err := s.db.First(&user, child.UserID).Error; err == nil {
+					childInfo.User = dto.CommentUserInfo{
+						ID:       user.ID,
+						Username: user.Username,
+						Avatar:   user.Avatar,
+					}
+				} else {
+					s.logger.Warnf("获取评论用户信息失败: %v", err)
 				}
 			}
 
@@ -571,7 +600,7 @@ func (s *CommentService) FilterContent(content string) string {
 // GetNotifications 获取评论通知
 func (s *CommentService) GetNotifications(userID uint, req *dto.CommentNotificationListRequest) (*dto.CommentNotificationListResponse, error) {
 	notificationService := NewNotificationService()
-	
+
 	// 转换请求参数
 	notifyReq := &dto.NotificationListRequest{
 		Page:     req.Page,
@@ -600,17 +629,16 @@ func (s *CommentService) GetNotifications(userID uint, req *dto.CommentNotificat
 				CreatedAt:    notification.CreatedAt,
 				IsRead:       notification.IsRead,
 			}
-			
+
 			if notification.Sender != nil {
 				commentNotify.UserID = notification.Sender.ID
 				commentNotify.User = dto.CommentUserInfo{
 					ID:       notification.Sender.ID,
 					Username: notification.Sender.Username,
-					Nickname: notification.Sender.Nickname,
 					Avatar:   notification.Sender.Avatar,
 				}
 			}
-			
+
 			list = append(list, commentNotify)
 		}
 	}
@@ -637,29 +665,29 @@ func (s *CommentService) MarkAllNotificationsAsRead(userID uint) error {
 // createCommentNotification 创建评论通知
 func (s *CommentService) createCommentNotification(senderID uint, comment *model.Comment, article *model.Article) {
 	notificationService := NewNotificationService()
-	
+
 	// 如果是回复评论，通知父评论作者
 	if comment.ParentID != nil {
 		var parentComment model.Comment
 		if err := s.db.Preload("User").First(&parentComment, *comment.ParentID).Error; err == nil {
 			// 回复通知
 			notificationService.CreateCommentReplyNotification(
-				senderID, 
-				parentComment.UserID, 
-				article.ID, 
-				comment.ID, 
+				senderID,
+				parentComment.UserID,
+				article.ID,
+				comment.ID,
 				article.Title,
 			)
 		}
 	}
-	
+
 	// 通知文章作者（如果不是自己评论自己的文章，且不是回复）
 	if article.AuthorID != senderID && comment.ParentID == nil {
 		notificationService.CreateCommentNotification(
-			senderID, 
-			article.AuthorID, 
-			article.ID, 
-			comment.ID, 
+			senderID,
+			article.AuthorID,
+			article.ID,
+			comment.ID,
 			article.Title,
 		)
 	}
@@ -671,16 +699,16 @@ func (s *CommentService) createCommentLikeNotification(senderID uint, comment *m
 	if senderID == comment.UserID {
 		return
 	}
-	
+
 	notificationService := NewNotificationService()
-	
+
 	// 获取文章信息
 	var article model.Article
 	if err := s.db.Select("id, title, author_id").First(&article, comment.ArticleID).Error; err != nil {
 		s.logger.Warnf("获取文章信息失败: %v", err)
 		return
 	}
-	
+
 	// 创建评论点赞通知
 	notificationService.CreateCommentLikeNotification(
 		senderID,

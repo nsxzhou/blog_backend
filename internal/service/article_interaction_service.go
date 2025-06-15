@@ -148,7 +148,7 @@ func (s *ArticleInteractionService) GetArticleLikes(articleID uint, page, pageSi
 
 	// 获取点赞用户列表
 	if err := s.db.Table("users").
-		Select("users.id, users.username, users.email, users.avatar, users.nickname, users.bio, users.role, users.status, users.created_at").
+		Select("users.id, users.username, users.email, users.avatar, users.bio, users.role, users.status, users.created_at").
 		Joins("JOIN article_likes ON users.id = article_likes.user_id").
 		Where("article_likes.article_id = ?", articleID).
 		Order("article_likes.created_at DESC").
@@ -326,7 +326,7 @@ func (s *ArticleInteractionService) createNotification(tx *gorm.DB, senderID, re
 		SenderID:  &senderID,
 		ArticleID: &articleID,
 		Type:      notificationType,
-		Content:   fmt.Sprintf("用户 %s %s《%s》", user.Nickname, action, article.Title),
+		Content:   fmt.Sprintf("用户 %s %s《%s》", user.Username, action, article.Title),
 		IsRead:    0,
 	}
 
@@ -572,11 +572,10 @@ func (s *ArticleInteractionService) convertToUserResponses(users []model.User) [
 			Username:  user.Username,
 			Email:     user.Email,
 			Avatar:    user.Avatar,
-			Nickname:  user.Nickname,
 			Bio:       user.Bio,
 			Role:      user.Role,
 			Status:    user.Status,
-			CreatedAt: user.CreatedAt.Format(time.RFC3339),
+			CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 	return userList
@@ -606,7 +605,7 @@ func (s *ArticleInteractionService) convertToArticleListItems(articles []model.A
 			CategoryID:    article.CategoryID,
 			CategoryName:  article.Category.Name,
 			AuthorID:      article.AuthorID,
-			AuthorName:    article.Author.Nickname,
+			AuthorName:    article.Author.Username,
 			CoverImage:    article.CoverImage,
 			ViewCount:     article.ViewCount,
 			LikeCount:     article.LikeCount,

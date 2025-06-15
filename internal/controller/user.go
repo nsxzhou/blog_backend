@@ -529,7 +529,7 @@ func (api *UserApi) GetUserStats(c *gin.Context) {
 // GetQQLoginURL 获取QQ登录URL
 func (api *UserApi) GetQQLoginURL(c *gin.Context) {
 	loginURL := api.userService.GetQQLoginURL()
-	
+
 	response.Success(c, "获取成功", dto.QQLoginURLResponse{
 		URL: loginURL,
 	})
@@ -551,7 +551,7 @@ func (api *UserApi) QQLoginCallback(c *gin.Context) {
 	}
 
 	api.logger.Infof("用户QQ登录成功: %s", user.Username)
-	
+
 	response.Success(c, "QQ登录成功", gin.H{
 		"access_token":  tokenPair.AccessToken,
 		"refresh_token": tokenPair.RefreshToken,

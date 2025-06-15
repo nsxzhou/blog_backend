@@ -138,17 +138,15 @@ func createAdminUser() {
 
 	// 创建管理员用户
 	user := &model.User{
-		Username:             username,
-		Password:             string(hashedPassword),
-		Email:                email,
-		Nickname:             nickname,
-		Role:                 "admin",
-		Status:               1,
-		IsVerified:           1,
-		IsPhoneVerified:      1,
-		LastLoginAt:          time.Now(),
-		LastLoginIP:          "127.0.0.1",
-		ResetPasswordExpires: time.Now(),
+		Username:        username,
+		Password:        string(hashedPassword),
+		Email:           email,
+		Role:            "admin",
+		Status:          1,
+		IsEmailVerified: 1,
+		IsPhoneVerified: 1,
+		LastLoginAt:     time.Now(),
+		LastLoginIP:     "127.0.0.1",
 	}
 
 	db := database.GetDB()
@@ -173,7 +171,7 @@ func listUsers() {
 	db := database.GetDB()
 	var users []model.User
 
-	if err := db.Select("id, username, email, nickname, role, status, created_at, last_login_at").
+	if err := db.Select("id, username, email, role, status, created_at, last_login_at").
 		Order("created_at DESC").
 		Limit(50).
 		Find(&users).Error; err != nil {
@@ -197,7 +195,7 @@ func listUsers() {
 		}
 
 		fmt.Printf("%-5d %-20s %-30s %-20s %-10s %-8s %-20s %-20s\n",
-			user.ID, user.Username, user.Email, user.Nickname,
+			user.ID, user.Username, user.Email,
 			user.Role, status, user.CreatedAt.Format("2006-01-02 15:04"), lastLogin)
 	}
 }

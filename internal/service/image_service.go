@@ -173,21 +173,21 @@ func (s *ImageService) GetDetail(imageID uint) (*dto.ImageDetailResponse, error)
 
 	detail := &dto.ImageDetailResponse{
 		Image: dto.ImageDetail{
-		ID:          image.ID,
-		URL:         image.URL,
-		Path:        image.Path,
-		Filename:    image.Filename,
-		Size:        image.Size,
-		Width:       image.Width,
-		Height:      image.Height,
-		MimeType:    image.MimeType,
-		UserID:      image.UserID,
-		UsageType:   image.UsageType,
-		ArticleID:   image.ArticleID,
-		IsExternal:  image.IsExternal,
-		StorageType: image.StorageType,
-		CreatedAt:   image.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   image.UpdatedAt.Format("2006-01-02 15:04:05"),
+			ID:          image.ID,
+			URL:         image.URL,
+			Path:        image.Path,
+			Filename:    image.Filename,
+			Size:        image.Size,
+			Width:       image.Width,
+			Height:      image.Height,
+			MimeType:    image.MimeType,
+			UserID:      image.UserID,
+			UsageType:   image.UsageType,
+			ArticleID:   image.ArticleID,
+			IsExternal:  image.IsExternal,
+			StorageType: image.StorageType,
+			CreatedAt:   image.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   image.UpdatedAt.Format("2006-01-02 15:04:05"),
 		},
 	}
 
@@ -222,7 +222,7 @@ func (s *ImageService) List(req *dto.ImageQueryRequest) (*dto.ImageListResponse,
 	}
 	if req.StorageType != "" {
 		query = query.Where("storage_type = ?", req.StorageType)
-	}else{
+	} else {
 		query = query.Where("storage_type IN ('local', 'cos')")
 	}
 	if req.IsExternal >= 0 {

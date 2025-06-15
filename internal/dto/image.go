@@ -88,7 +88,7 @@ type ImageUpload struct {
 	Size        int    `json:"size"`         // 文件大小（字节）
 	Width       *int   `json:"width"`        // 图片宽度
 	Height      *int   `json:"height"`       // 图片高度
-	MimeType    string `json:"mime_type"`    // MIME类型 
+	MimeType    string `json:"mime_type"`    // MIME类型
 	UsageType   string `json:"usage_type"`   // 使用类型: avatar cover content
 	StorageType string `json:"storage_type"` // 存储类型: local cos
 }

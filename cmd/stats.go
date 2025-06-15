@@ -156,14 +156,14 @@ func showUserStats() {
 	
 	// 最近注册的用户
 	var recentUsers []model.User
-	db.Select("id, username, nickname, email, created_at").
+	db.Select("id, username, email, created_at").
 		Order("created_at DESC").
 		Limit(5).
 		Find(&recentUsers)
 	
 	fmt.Println("\n最近注册用户:")
 	for _, user := range recentUsers {
-		fmt.Printf("- %s (%s) - %s\n", user.Username, user.Nickname, user.CreatedAt.Format("2006-01-02 15:04"))
+		fmt.Printf("- %s - %s\n", user.Username, user.CreatedAt.Format("2006-01-02 15:04"))
 	}
 	
 	// 用户角色分布

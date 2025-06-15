@@ -22,8 +22,8 @@ var (
 
 // NotificationService 通知服务
 type NotificationService struct {
-	db              *gorm.DB
-	logger          *zap.SugaredLogger
+	db               *gorm.DB
+	logger           *zap.SugaredLogger
 	websocketManager *websocket.Manager
 }
 
@@ -31,8 +31,8 @@ type NotificationService struct {
 func NewNotificationService() *NotificationService {
 	notificationServiceOnce.Do(func() {
 		notificationService = &NotificationService{
-			db:              database.GetDB(),
-			logger:          logger.GetSugaredLogger(),
+			db:               database.GetDB(),
+			logger:           logger.GetSugaredLogger(),
 			websocketManager: websocket.GetManager(),
 		}
 	})
@@ -60,18 +60,18 @@ func (s *NotificationService) createNotificationSync(senderID, receiverID uint, 
 	var count int64
 	query := s.db.Model(&model.Notification{}).
 		Where("user_id = ? AND sender_id = ? AND type = ? AND is_read = 0", receiverID, senderID, notificationType)
-	
+
 	if articleID != nil {
 		query = query.Where("article_id = ?", *articleID)
 	}
 	if commentID != nil {
 		query = query.Where("comment_id = ?", *commentID)
 	}
-	
+
 	if err := query.Count(&count).Error; err != nil {
 		return fmt.Errorf("检查重复通知失败: %w", err)
 	}
-	
+
 	if count > 0 {
 		// 存在相同未读通知，更新时间而不创建新通知
 		return s.updateExistingNotification(receiverID, senderID, notificationType, content, articleID, commentID)
@@ -110,7 +110,7 @@ func (s *NotificationService) createNotificationSync(senderID, receiverID uint, 
 func (s *NotificationService) updateExistingNotification(receiverID, senderID uint, notificationType string, content string, articleID, commentID *uint) error {
 	query := s.db.Model(&model.Notification{}).
 		Where("user_id = ? AND sender_id = ? AND type = ? AND is_read = 0", receiverID, senderID, notificationType)
-	
+
 	if articleID != nil {
 		query = query.Where("article_id = ?", *articleID)
 	}
@@ -213,7 +213,6 @@ func (s *NotificationService) convertToNotificationResponse(notification *model.
 		resp.Sender = &dto.NotificationUserInfo{
 			ID:       notification.Sender.ID,
 			Username: notification.Sender.Username,
-			Nickname: notification.Sender.Nickname,
 			Avatar:   notification.Sender.Avatar,
 		}
 	}
@@ -367,4 +366,4 @@ func (s *NotificationService) CreateCommentLikeNotification(senderID, receiverID
 func (s *NotificationService) CreateFollowNotification(senderID, receiverID uint, senderNickname string) {
 	content := fmt.Sprintf("%s 关注了你", senderNickname)
 	s.CreateNotification(senderID, receiverID, "follow", content, nil, nil)
-} 
+}

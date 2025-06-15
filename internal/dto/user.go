@@ -4,8 +4,8 @@ package dto
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=50"`
 	Password string `json:"password" binding:"required,min=6,max=32"`
-	Email    string `json:"email" binding:"required,email"`
-	Nickname string `json:"nickname"`
+	Email    string `json:"email" binding:"omitempty,email"`
+	Phone    string `json:"phone" binding:"omitempty,len=11"`
 }
 
 // LoginRequest 用户登录请求
@@ -28,11 +28,11 @@ type LogoutRequest struct {
 
 // UserInfoUpdateRequest 用户信息更新请求
 type UserInfoUpdateRequest struct {
-	Nickname string `json:"nickname"`
-	Bio      string `json:"bio"`
-	Avatar   string `json:"avatar"`
+	Username string `json:"username" binding:"required,min=1,max=50"`
+	Bio      string `json:"bio" binding:"omitempty,max=255"`
+	Avatar   string `json:"avatar" binding:"omitempty"`
 	Email    string `json:"email" binding:"omitempty,email"`
-	Phone    string `json:"phone" binding:"omitempty"`
+	Phone    string `json:"phone" binding:"omitempty,len=11"`
 }
 
 // ChangePasswordRequest 密码修改请求
@@ -106,23 +106,22 @@ type FollowUserRequest struct {
 
 // UserResponse 用户信息响应
 type UserResponse struct {
-	ID               uint   `json:"id"`
-	Username         string `json:"username"`
-	Email            string `json:"email"`
-	Avatar           string `json:"avatar"`
-	Nickname         string `json:"nickname"`
-	Bio              string `json:"bio"`
-	Role             string `json:"role"`
-	Status           int    `json:"status"` // 0=禁用 1=正常
-	IsVerified       int    `json:"is_verified"`
-	IsPhoneVerified  int    `json:"is_phone_verified"`
-	Phone            string `json:"phone,omitempty"`
-	CreatedAt        string `json:"created_at"`
-	LastLoginAt      string `json:"last_login_at,omitempty"`
-	LastLoginIP      string `json:"last_login_ip,omitempty"`
-	FollowerCount    int64  `json:"follower_count,omitempty"`  // 粉丝数
-	FollowingCount   int64  `json:"following_count,omitempty"` // 关注数
-	IsFollowedByMe   bool   `json:"is_followed_by_me,omitempty"` // 是否被当前用户关注
+	ID              uint   `json:"id"`
+	Username        string `json:"username"`
+	Avatar          string `json:"avatar"`
+	Bio             string `json:"bio"`
+	Role            string `json:"role"`
+	Status          int    `json:"status"` // 0=禁用 1=正常
+	Email           string `json:"email"`
+	IsEmailVerified int    `json:"is_email_verified"`
+	Phone           string `json:"phone"`
+	IsPhoneVerified int    `json:"is_phone_verified"`
+	CreatedAt       string `json:"created_at"`
+	LastLoginAt     string `json:"last_login_at"`
+	LastLoginIP     string `json:"last_login_ip"`
+	FollowerCount   int64  `json:"follower_count"`    // 粉丝数
+	FollowingCount  int64  `json:"following_count"`   // 关注数
+	IsFollowedByMe  bool   `json:"is_followed_by_me"` // 是否被当前用户关注
 }
 
 // UserListResponse 用户列表响应
@@ -134,17 +133,16 @@ type UserListResponse struct {
 // UserDetailResponse 用户详情响应
 type UserDetailResponse struct {
 	UserResponse
-	ArticleCount  int64  `json:"article_count"`  // 文章数
-	CommentCount  int64  `json:"comment_count"`  // 评论数
-	LikeCount     int64  `json:"like_count"`     // 获赞数
-	FavoriteCount int64  `json:"favorite_count"` // 收藏数
+	ArticleCount  int64 `json:"article_count"`  // 文章数
+	CommentCount  int64 `json:"comment_count"`  // 评论数
+	LikeCount     int64 `json:"like_count"`     // 获赞数
+	FavoriteCount int64 `json:"favorite_count"` // 收藏数
 }
 
 // UserBriefInfo 用户简要信息
 type UserBriefInfo struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
-	Nickname string `json:"nickname"`
 	Avatar   string `json:"avatar"`
 	Bio      string `json:"bio"`
 }
@@ -157,9 +155,9 @@ type FollowListResponse struct {
 
 // UserStatResponse 用户统计响应
 type UserStatResponse struct {
-	TotalUsers      int64 `json:"total_users"`
-	ActiveUsers     int64 `json:"active_users"`     // 30天内活跃用户
-	NewUsers        int64 `json:"new_users"`        // 本月新用户
-	AdminUsers      int64 `json:"admin_users"`      // 管理员用户
-	DisabledUsers   int64 `json:"disabled_users"`   // 禁用用户
+	TotalUsers    int64 `json:"total_users"`
+	ActiveUsers   int64 `json:"active_users"`   // 30天内活跃用户
+	NewUsers      int64 `json:"new_users"`      // 本月新用户
+	AdminUsers    int64 `json:"admin_users"`    // 管理员用户
+	DisabledUsers int64 `json:"disabled_users"` // 禁用用户
 }

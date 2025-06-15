@@ -47,6 +47,8 @@ func NewUserService() *UserService {
 func (s *UserService) Register(req *dto.RegisterRequest) (*model.User, *auth.TokenPair, error) {
 	// 检查用户名是否已存在
 	var count int64
+	var email string
+	var phone string
 	if err := s.db.Model(&model.User{}).Where("username = ?", req.Username).Count(&count).Error; err != nil {
 		return nil, nil, err
 	}
@@ -54,30 +56,29 @@ func (s *UserService) Register(req *dto.RegisterRequest) (*model.User, *auth.Tok
 		return nil, nil, errors.New("用户名已存在")
 	}
 
-	// 检查邮箱是否已存在
-	if err := s.db.Model(&model.User{}).Where("email = ?", req.Email).Count(&count).Error; err != nil {
-		return nil, nil, err
-	}
-	if count > 0 {
-		return nil, nil, errors.New("邮箱已存在")
-	}
-
 	// 密码加密
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, nil, err
 	}
+	if req.Email != "" {
+		email = req.Email
+	}
+	if req.Phone != "" {
+		phone = req.Phone
+	}
 
 	// 创建用户
 	user := &model.User{
-		Username:             req.Username,
-		Password:             string(hashedPassword),
-		Email:                req.Email,
-		Nickname:             req.Nickname,
-		Role:                 "user",
-		Status:               1,          // 1 表示启用
-		LastLoginAt:          time.Now(), // 设置初始登录时间为当前时间
-		ResetPasswordExpires: time.Now(), // 设置密码重置过期时间的初始值为当前时间
+		Username:        req.Username,
+		Password:        string(hashedPassword),
+		Email:           email,
+		IsEmailVerified: 0,
+		Phone:           phone,
+		IsPhoneVerified: 0,
+		Role:            "user",
+		Status:          1,          // 1 表示启用
+		LastLoginAt:     time.Now(), // 设置初始登录时间为当前时间
 	}
 
 	if err := s.db.Create(user).Error; err != nil {
@@ -203,8 +204,8 @@ func (s *UserService) UpdateUserInfo(id uint, req *dto.UserInfoUpdateRequest) (*
 
 	// 更新用户信息
 	updates := map[string]interface{}{}
-	if req.Nickname != "" {
-		updates["nickname"] = req.Nickname
+	if req.Username != "" {
+		updates["username"] = req.Username
 	}
 	if req.Bio != "" {
 		updates["bio"] = req.Bio
@@ -222,7 +223,7 @@ func (s *UserService) UpdateUserInfo(id uint, req *dto.UserInfoUpdateRequest) (*
 			return nil, errors.New("邮箱已被使用")
 		}
 		updates["email"] = req.Email
-		updates["is_verified"] = 0 // 新邮箱需要重新验证
+		updates["is_email_verified"] = 0 // 新邮箱需要重新验证
 	}
 	if req.Phone != "" && req.Phone != user.Phone {
 		// 检查手机号是否已被使用
@@ -283,7 +284,6 @@ func (s *UserService) GenerateUserResponse(user *model.User) *dto.UserResponse {
 		Username:  user.Username,
 		Email:     user.Email,
 		Avatar:    user.Avatar,
-		Nickname:  user.Nickname,
 		Bio:       user.Bio,
 		Role:      user.Role,
 		Status:    user.Status,
@@ -298,11 +298,10 @@ func (s *UserService) GenerateUserResponseWithStats(user *model.User, currentUse
 		Username:        user.Username,
 		Email:           user.Email,
 		Avatar:          user.Avatar,
-		Nickname:        user.Nickname,
 		Bio:             user.Bio,
 		Role:            user.Role,
 		Status:          user.Status,
-		IsVerified:      user.IsVerified,
+		IsEmailVerified: user.IsEmailVerified,
 		IsPhoneVerified: user.IsPhoneVerified,
 		Phone:           user.Phone,
 		CreatedAt:       user.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -401,8 +400,8 @@ func (s *UserService) FollowUser(followerID, followedID uint) error {
 	go func() {
 		notificationService := NewNotificationService()
 		var follower model.User
-		if err := s.db.Select("nickname").First(&follower, followerID).Error; err == nil {
-			notificationService.CreateFollowNotification(followerID, followedID, follower.Nickname)
+		if err := s.db.Select("username").First(&follower, followerID).Error; err == nil {
+			notificationService.CreateFollowNotification(followerID, followedID, follower.Username)
 		}
 	}()
 
@@ -452,7 +451,6 @@ func (s *UserService) GetFollowers(userID uint, page, pageSize int) (*dto.Follow
 		list = append(list, dto.UserBriefInfo{
 			ID:       follow.Follower.ID,
 			Username: follow.Follower.Username,
-			Nickname: follow.Follower.Nickname,
 			Avatar:   follow.Follower.Avatar,
 			Bio:      follow.Follower.Bio,
 		})
@@ -489,7 +487,6 @@ func (s *UserService) GetFollowing(userID uint, page, pageSize int) (*dto.Follow
 		list = append(list, dto.UserBriefInfo{
 			ID:       follow.Followed.ID,
 			Username: follow.Followed.Username,
-			Nickname: follow.Followed.Nickname,
 			Avatar:   follow.Followed.Avatar,
 			Bio:      follow.Followed.Bio,
 		})
@@ -510,8 +507,8 @@ func (s *UserService) GetUserList(req *dto.UserListRequest) (*dto.UserListRespon
 
 	// 条件过滤
 	if req.Keyword != "" {
-		query = query.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ?",
-			"%"+req.Keyword+"%", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
+		query = query.Where("username LIKE ? OR email LIKE ?",
+			"%"+req.Keyword+"%", "%"+req.Keyword+"%")
 	}
 	if req.Role != "" {
 		query = query.Where("role = ?", req.Role)
@@ -663,47 +660,12 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 
 // SendVerificationEmail 发送验证邮件
 func (s *UserService) SendVerificationEmail(email string) error {
-	var user model.User
-	if err := s.db.Where("email = ?", email).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("邮箱不存在")
-		}
-		return err
-	}
-
-	if user.IsVerified == 1 {
-		return errors.New("邮箱已验证")
-	}
-
-	// 生成验证令牌
-	verificationToken := s.generateVerificationToken()
-
-	// 更新用户验证令牌
-	if err := s.db.Model(&user).Update("verification_token", verificationToken).Error; err != nil {
-		return err
-	}
-
-	// 发送验证邮件（这里需要实现邮件发送功能）
-	s.logger.Infof("验证邮件已发送到: %s, 令牌: %s", email, verificationToken)
-
-	return nil
+	return errors.New("邮箱验证暂不支持")
 }
 
 // VerifyEmail 验证邮箱
 func (s *UserService) VerifyEmail(token string) error {
-	var user model.User
-	if err := s.db.Where("verification_token = ?", token).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("验证令牌无效")
-		}
-		return err
-	}
-
-	// 更新验证状态并清除令牌
-	return s.db.Model(&user).Updates(map[string]interface{}{
-		"is_verified":        1,
-		"verification_token": "",
-	}).Error
+	return errors.New("邮箱验证暂不支持")
 }
 
 // GetUserStats 获取用户统计（管理员）
@@ -735,7 +697,7 @@ func (s *UserService) GetUserStats() (*dto.UserStatResponse, error) {
 // createFollowNotification 创建关注通知
 func (s *UserService) createFollowNotification(followerID, followedID uint) {
 	var follower model.User
-	if err := s.db.Select("username, nickname").First(&follower, followerID).Error; err != nil {
+	if err := s.db.Select("username").First(&follower, followerID).Error; err != nil {
 		return
 	}
 
@@ -743,7 +705,7 @@ func (s *UserService) createFollowNotification(followerID, followedID uint) {
 		UserID:   followedID,
 		SenderID: &followerID,
 		Type:     "follow",
-		Content:  follower.Nickname + " 关注了你",
+		Content:  follower.Username + " 关注了你",
 		IsRead:   0,
 	}
 
@@ -930,17 +892,15 @@ func (s *UserService) getQQUserInfo(accessToken, openID string) (*QQUserInfo, er
 // createUserFromQQ 从QQ信息创建用户
 func (s *UserService) createUserFromQQ(openID string, qqUserInfo *QQUserInfo, clientIP string) (model.User, error) {
 	user := model.User{
-		Email:                fmt.Sprintf("%s@temp.example.com", qqUserInfo.Nickname),
-		Username:             qqUserInfo.Nickname,
-		Password:             s.generateRandomString(32), // 随机密码，QQ用户无法使用密码登录
-		Nickname:             qqUserInfo.Nickname,
-		Avatar:               qqUserInfo.Figureurl1,
-		Role:                 "user",
-		Status:               1,
-		QQOpenID:             openID,
-		LastLoginAt:          time.Now(),
-		LastLoginIP:          clientIP,
-		ResetPasswordExpires: time.Now(),
+		Email:       fmt.Sprintf("%s@temp.example.com", qqUserInfo.Nickname),
+		Username:    qqUserInfo.Nickname,
+		Password:    s.generateRandomString(32), // 随机密码，QQ用户无法使用密码登录
+		Avatar:      qqUserInfo.Figureurl1,
+		Role:        "user",
+		Status:      1,
+		QQOpenID:    openID,
+		LastLoginAt: time.Now(),
+		LastLoginIP: clientIP,
 	}
 
 	if err := s.db.Create(&user).Error; err != nil {

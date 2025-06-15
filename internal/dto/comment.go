@@ -21,27 +21,26 @@ type CommentReplyRequest struct {
 
 // CommentResponse 评论响应
 type CommentResponse struct {
-	ID           uint               `json:"id"`
-	Content      string             `json:"content"`
-	ArticleID    uint               `json:"article_id"`
-	UserID       uint               `json:"user_id"`
-	ParentID     *uint              `json:"parent_id"`
-	Status       string             `json:"status"`
-	RejectReason string             `json:"reject_reason,omitempty"`
-	CreatedAt    string             `json:"created_at"`
-	UpdatedAt    string             `json:"updated_at"`
-	User         CommentUserInfo    `json:"user"`
-	Parent       *CommentBriefInfo  `json:"parent,omitempty"`
-	Children     []CommentBriefInfo `json:"children,omitempty"`
-	LikeCount    int                `json:"like_count"`
-	LikedByMe    bool               `json:"liked_by_me"`
+	ID           uint              `json:"id"`
+	Content      string            `json:"content"`
+	ArticleID    uint              `json:"article_id"`
+	UserID       uint              `json:"user_id"`
+	ParentID     *uint             `json:"parent_id"`
+	Status       string            `json:"status"`
+	RejectReason string            `json:"reject_reason,omitempty"`
+	CreatedAt    string            `json:"created_at"`
+	UpdatedAt    string            `json:"updated_at"`
+	User         CommentUserInfo   `json:"user"`
+	Parent       *CommentResponse  `json:"parent,omitempty"`
+	Children     []CommentResponse `json:"children,omitempty"`
+	LikeCount    int               `json:"like_count"`
+	LikedByMe    bool              `json:"liked_by_me"`
 }
 
 // CommentUserInfo 评论用户信息
 type CommentUserInfo struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
-	Nickname string `json:"nickname"`
 	Avatar   string `json:"avatar"`
 }
 

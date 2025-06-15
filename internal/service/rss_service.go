@@ -131,9 +131,7 @@ func (s *RSSService) buildRSSItem(article *model.Article, baseURL string) dto.RS
 
 	// 构建作者信息
 	author := "匿名"
-	if article.Author.Nickname != "" {
-		author = article.Author.Nickname
-	} else if article.Author.Username != "" {
+	if article.Author.Username != "" {
 		author = article.Author.Username
 	}
 

@@ -732,7 +732,7 @@ func (s *ArticleSearchService) convertToArticleListItem(article model.Article, h
 		CategoryID:    article.CategoryID,
 		CategoryName:  article.Category.Name,
 		AuthorID:      article.AuthorID,
-		AuthorName:    article.Author.Nickname,
+		AuthorName:    article.Author.Username,
 		CoverImage:    article.CoverImage,
 		ViewCount:     article.ViewCount,
 		LikeCount:     article.LikeCount,

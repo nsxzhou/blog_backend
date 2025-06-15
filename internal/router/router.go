@@ -67,16 +67,8 @@ func setupUserRoutes(api *gin.RouterGroup) {
 		userRoutes.POST("/forgot-password", userApi.ForgotPassword)
 		// 重置密码
 		userRoutes.POST("/reset-password", userApi.ResetPassword)
-		// 发送验证邮件
-		//userRoutes.POST("/send-verification", userApi.SendVerificationEmail)
-		// 验证邮箱
-		//userRoutes.POST("/verify-email", userApi.VerifyEmail)
 		// 获取用户详情（公开接口，可查看任何用户的公开信息）
 		userRoutes.GET("/:id", userApi.GetUserDetail)
-		// 获取指定用户粉丝列表（公开接口）
-		//userRoutes.GET("/:id/followers", userApi.GetUserFollowers)
-		// 获取指定用户关注列表（公开接口）
-		//userRoutes.GET("/:id/following", userApi.GetUserFollowing)
 		// QQ登录相关接口
 		userRoutes.GET("/qq/login-url", userApi.GetQQLoginURL)
 		userRoutes.GET("/qq/callback", userApi.QQLoginCallback)

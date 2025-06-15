@@ -90,9 +90,8 @@ func (s *CategoryService) Update(id uint, req *dto.CategoryUpdateRequest) (*mode
 		"name":        req.Name,
 		"description": req.Description,
 		"icon":        req.Icon,
-		"is_visible":  req.IsVisible,	
+		"is_visible":  req.IsVisible,
 	}
-
 
 	if err := s.db.Model(category).Updates(updates).Error; err != nil {
 		return nil, err
